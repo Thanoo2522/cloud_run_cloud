@@ -2555,12 +2555,12 @@ def submit_payment():
 def get_bank_notpay():
     try:
         data = request.json
-        target_shop = data.get('shop')
+        Nameofm = data.get('ofmname')
 
         # กรองให้แคบลงด้วย 2 เงื่อนไข (ต้องการ Composite Index)
         docs = db.collection_group("bank") \
                  .where("check", "==", "notpay") \
-                 .where("shop", "==", target_shop) \
+                 .where("nameofm", "==",Nameofm) \
                  .stream()
 
         results = []
@@ -2571,7 +2571,7 @@ def get_bank_notpay():
                 "time": item.get('time'),    # ตรงกับในรูป Firestore
                 "money": item.get('money'),  # ตรงกับในรูป Firestore
                 "name": item.get('namebookbank'),
-                "shop": item.get('shop'),
+                #"shop": item.get('shop'),
                 "doc_id": doc.id
             })
 
