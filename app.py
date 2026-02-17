@@ -2567,7 +2567,7 @@ def get_bank_notpay():
         for doc in docs:
             item = doc.to_dict()
             results.append({
-                "date": item.get('data'),    # ตรงกับในรูป Firestore
+                "date": item.get('date'),    # ตรงกับในรูป Firestore
                 "time": item.get('time'),    # ตรงกับในรูป Firestore
                 "money": item.get('money'),  # ตรงกับในรูป Firestore
                 "name": item.get('namebookbank'),
