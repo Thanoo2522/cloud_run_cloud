@@ -2571,7 +2571,7 @@ def get_bank_notpay():
                 "time": item.get('time'),    # ตรงกับในรูป Firestore
                 "money": item.get('money'),  # ตรงกับในรูป Firestore
                 "name": item.get('namebookbank'),
-                #"shop": item.get('shop'),
+                "shop": item.get('shop'),
                 "doc_id": doc.id
             })
 
