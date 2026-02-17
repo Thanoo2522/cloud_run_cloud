@@ -2554,26 +2554,37 @@ def submit_payment():
 @app.route('/get_bank_notpay', methods=['POST'])
 def get_bank_notpay():
     try:
-        # ดึงข้อมูลจากทุก collection "bank" ที่มีสถานะ notpay
+        data = request.json
+        target_shop = data.get('shop') # รับชื่อร้านจาก MAUI
+
+        # Query ดึงสถานะ notpay ทั้งหมด
         docs = db.collection_group("bank") \
                  .where("check", "==", "notpay") \
+                    .where("shop", "==", target_shop)\
                  .stream()
 
         results = []
         for doc in docs:
-            item = doc.to_dict()
-            results.append({
-                "date": item.get('date'),   # แก้จาก 'date' เป็น 'data' ตามชื่อฟิลด์ใน Firestore
-                "time": item.get('time'),
-                "money": item.get('money'),
-                "name": item.get('namebookbank'),
-                "doc_id": doc.id
-            })
-
+            # ดึงชื่อ partnershop จาก path ของ document (parent ของ parent)
+            # path: OFM_name/{ofm}/partner/{partnershop}/bank/{doc_id}
+            shop_id = doc.reference.parent.parent.id
+            
+            # กรองให้เหลือเฉพาะร้านที่ส่งมาจาก MAUI
+            if shop_id == target_shop:
+                item = doc.to_dict()
+                results.append({
+                    "date": item.get('data'), # ในรูปใช้ data (สระอา)
+                    "time": item.get('time'),
+                    "money": item.get('money'),
+                    "name": item.get('namebookbank'),
+                    "shop": shop_id,
+                    "doc_id": doc.id
+                })
 
         return jsonify({"status": "success", "data": results}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 
 
