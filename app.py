@@ -2555,35 +2555,32 @@ def submit_payment():
 def get_bank_notpay():
     try:
         data = request.json
-        target_shop = data.get('shop') # รับชื่อร้านจาก MAUI
+        target_shop = data.get('shop')
 
-        # Query ดึงสถานะ notpay ทั้งหมด
+        # กรองให้แคบลงด้วย 2 เงื่อนไข (ต้องการ Composite Index)
         docs = db.collection_group("bank") \
                  .where("check", "==", "notpay") \
-                    .where("shop", "==", target_shop)\
+                 .where("shop", "==", target_shop) \
                  .stream()
 
         results = []
         for doc in docs:
-            # ดึงชื่อ partnershop จาก path ของ document (parent ของ parent)
-            # path: OFM_name/{ofm}/partner/{partnershop}/bank/{doc_id}
-            shop_id = doc.reference.parent.parent.id
-            
-            # กรองให้เหลือเฉพาะร้านที่ส่งมาจาก MAUI
-            if shop_id == target_shop:
-                item = doc.to_dict()
-                results.append({
-                    "date": item.get('data'), # ในรูปใช้ data (สระอา)
-                    "time": item.get('time'),
-                    "money": item.get('money'),
-                    "name": item.get('namebookbank'),
-                    "shop": shop_id,
-                    "doc_id": doc.id
-                })
+            item = doc.to_dict()
+            results.append({
+                "date": item.get('data'),    # ตรงกับในรูป Firestore
+                "time": item.get('time'),    # ตรงกับในรูป Firestore
+                "money": item.get('money'),  # ตรงกับในรูป Firestore
+                "name": item.get('namebookbank'),
+                "shop": item.get('shop'),
+                "doc_id": doc.id
+            })
 
         return jsonify({"status": "success", "data": results}), 200
     except Exception as e:
+        # หากยังไม่ได้สร้าง Index จะมี Error พร้อม link ให้กดสร้างขึ้นที่นี่
+        print(f"Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 
 
