@@ -2532,6 +2532,8 @@ def submit_payment():
             "time": data.get('time'),
             "money": data.get('money'),
             "check": "notpay",
+            "nameofm":ofmname,
+             "shop":partnershop,
             "timestamp": now 
         }
 
@@ -2560,14 +2562,14 @@ def get_bank_notpay():
         results = []
         for doc in docs:
             item = doc.to_dict()
-            # ดึงข้อมูลที่ต้องการส่งกลับไป MAUI
             results.append({
-                "date": item.get('date'),  # แปลงฟิลด์ data ใน DB เป็น date ส่งกลับ
+                "date": item.get('date'),   # แก้จาก 'date' เป็น 'data' ตามชื่อฟิลด์ใน Firestore
                 "time": item.get('time'),
                 "money": item.get('money'),
                 "name": item.get('namebookbank'),
                 "doc_id": doc.id
             })
+
 
         return jsonify({"status": "success", "data": results}), 200
     except Exception as e:
