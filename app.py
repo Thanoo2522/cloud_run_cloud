@@ -2548,7 +2548,30 @@ def submit_payment():
         print(traceback.format_exc())
         return jsonify({"status": "error", "message": str(e)}), 500
 
+#-----------------------------------
+@app.route('/get_bank_notpay', methods=['POST'])
+def get_bank_notpay():
+    try:
+        data = request.json
+        date = data.get('date')
+        time = data.get('time')
+        money = data.get('money')
 
+        # ดึงข้อมูลจากทุก collection/subcollection ที่ชื่อ "bank"
+        docs = db.collection_group("bank") \
+                 .where("check", "==", "notpay") \
+                 .where("date", "==", date) \
+                 .where("time", "==", time) \
+                 .where("money", "==", money) \
+                 .stream()
+
+        results = []
+        for doc in docs:
+            results.append(doc.to_dict())
+
+        return jsonify({"status": "success", "data": results}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 # ------------------------------------
 if __name__ == "__main__":
     app.run(debug=True)
