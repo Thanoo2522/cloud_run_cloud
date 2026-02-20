@@ -2509,6 +2509,45 @@ def slave_password():
         }), 500
 
 #-----------------------------------
+@app.route('/paymentrider', methods=['POST'])
+def paymentrider():
+    try:
+        data = request.json        
+        # ดึงค่าจาก payload
+        ofmname = data.get('ofmname')
+        ridername = data.get('namerider')        
+        # 1. สร้างชื่อ Document ตามรูปแบบ ว:ด:ป_hh:mm:ss
+        # %d=วัน, %m=เดือน, %Y=ปี(ค.ศ.), %H=ชั่วโมง, %M=นาที, %S=วินาที
+        now = datetime.now()
+        doc_id = now.strftime("%d:%m:%Y_%H:%M:%S")
+
+        payment_data = {
+            "namebookbank": data.get('namebookbank'),
+            "namphone": data.get('namphone'),
+            "date": data.get('date'),
+            "time": data.get('time'),
+            "money": data.get('money'),
+            "check": "notpay",
+            "nameofm":ofmname,
+             "rider":ridername,
+            "timestamp": now 
+        }
+       #/OFM_name/ตลาดเชียงกลมออนไลน์/delivery/fresh
+        # 2. เปลี่ยนชื่อ document จาก "bank_notification" เป็น doc_id
+        doc_ref = db.collection("OFM_name").document(ofmname)\
+                    .collection("delivery").document(ridername)\
+                    .collection("bankrider").document(doc_id)
+        
+        doc_ref.set(payment_data) # ไม่ต้องใช้ merge=True เพราะชื่อ doc ไม่ซ้ำกันอยู่แล้ว
+
+        return jsonify({"status": "success", "message": "บันทึกข้อมูลเรียบร้อย", "doc_id": doc_id}), 200
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+#-----------------------------------
  
 
 @app.route('/api/payment/submit', methods=['POST'])
