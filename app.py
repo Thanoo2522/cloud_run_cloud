@@ -2558,7 +2558,7 @@ def get_bank_notpay():
         Nameofm = data.get('ofmname')
 
         # กรองให้แคบลงด้วย 2 เงื่อนไข (ต้องการ Composite Index)
-        docs = db.collection_group("bank") \
+        docs = db.collection_group("bankshop") \
                  .where("check", "==", "notpay") \
                  .where("nameofm", "==",Nameofm) \
                  .stream()
