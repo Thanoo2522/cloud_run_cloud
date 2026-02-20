@@ -2581,7 +2581,7 @@ def get_bank_notpay():
         print(f"Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
-#----------------------------------- update เพื่อให้รู้ว่า ร้านค้าชำระเงินแล้ว
+#------------------------------ update เพื่อให้รู้ว่า ร้านค้าชำระเงินแล้ว
 @app.route('/update-pay_shopservice', methods=['POST'])
 def update_status():
     try:
