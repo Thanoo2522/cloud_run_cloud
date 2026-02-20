@@ -2547,7 +2547,7 @@ def paymentrider():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
-#-----------------------------------
+#---------------------------------
  
 
 @app.route('/api/payment/submit', methods=['POST'])
