@@ -2581,6 +2581,50 @@ def get_bank_notpay():
         print(f"Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+#----------------------------------- update เพื่อให้รู้ว่า ร้านค้าชำระเงินแล้ว
+@app.route('/update-pay_shopservice', methods=['POST'])
+def update_status():
+    try:
+        # รับค่า nameofm และ partnershop จาก Client
+        data = request.json
+        nameofm = data.get('nameofm')
+        partnershop = data.get('partnershop')
+
+        if not nameofm or not partnershop:
+            return jsonify({"error": "Missing parameters"}), 400
+
+        # อ้างอิง Path พื้นฐาน
+        base_ref = db.collection('OFM_name').document(nameofm) \
+                     .collection('partner').document(partnershop)
+
+        # --- ส่วนที่ 1: อัปเดต costservice (pay: "not" -> "pass") ---
+        costservice_ref = base_ref.collection('costservice')
+        cost_docs = costservice_ref.where('pay', '==', 'not').stream()
+        
+        updated_cost_count = 0
+        for doc in cost_docs:
+            doc.reference.update({'pay': 'pass'})
+            updated_cost_count += 1
+
+        # --- ส่วนที่ 2: อัปเดต bankshop (check: "notpay" -> "pass") ---
+        bankshop_ref = base_ref.collection('bankshop')
+        bank_docs = bankshop_ref.where('check', '==', 'notpay').stream()
+        
+        updated_bank_count = 0
+        for doc in bank_docs:
+            doc.reference.update({'check': 'pass'})
+            updated_bank_count += 1
+
+        return jsonify({
+            "success": True,
+            "details": {
+                "costservice_updated": updated_cost_count,
+                "bankshop_updated": updated_bank_count
+            }
+        }), 200
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 
