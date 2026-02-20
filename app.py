@@ -2540,7 +2540,7 @@ def submit_payment():
         # 2. เปลี่ยนชื่อ document จาก "bank_notification" เป็น doc_id
         doc_ref = db.collection("OFM_name").document(ofmname)\
                     .collection("partner").document(partnershop)\
-                    .collection("bank").document(doc_id)
+                    .collection("bankshop").document(doc_id)
         
         doc_ref.set(payment_data) # ไม่ต้องใช้ merge=True เพราะชื่อ doc ไม่ซ้ำกันอยู่แล้ว
 
