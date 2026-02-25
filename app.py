@@ -2697,7 +2697,7 @@ def update_status():
 
 
 
-#-----------------------------update เพื่อให้รู้ว่า ร้านค้าชำระเงินแล้ว
+#--------------------------not--update เพื่อให้รู้ว่า ร้านค้าชำระเงินแล้ว
 @app.route('/update_pay_rider', methods=['POST'])
 def update_pay_rider():
     try:
