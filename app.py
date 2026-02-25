@@ -2589,7 +2589,7 @@ def submit_payment():
         print(traceback.format_exc())
         return jsonify({"status": "error", "message": str(e)}), 500
 
-#-----------------------------------
+#---------------ดึงข้อมูลจาก firebase ของร้านร่วมบริการ ที่แจ้งการโอนเงินเข้ามา
 @app.route('/get_bank_notpay', methods=['POST'])
 def get_bank_notpay():
     try:
@@ -2619,7 +2619,37 @@ def get_bank_notpay():
         # หากยังไม่ได้สร้าง Index จะมี Error พร้อม link ให้กดสร้างขึ้นที่นี่
         print(f"Error: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
+#---------------------------------------------------------
+#---------------ดึงข้อมูลจาก firebase ของ rider ที่แจ้งการโอนเงินเข้ามา
+@app.route('/get_bankrider', methods=['POST'])
+def get_bankrider():
+    try:
+        data = request.json
+        Nameofm = data.get('ofmname')
 
+        # กรองให้แคบลงด้วย 2 เงื่อนไข (ต้องการ Composite Index)
+        docs = db.collection_group("bankrider") \
+                 .where("check", "==", "notpay") \
+                 .where("nameofm", "==",Nameofm) \
+                 .stream()
+
+        results = []
+        for doc in docs:
+            item = doc.to_dict()
+            results.append({
+                "date": item.get('date'),    # ตรงกับในรูป Firestore
+                "time": item.get('time'),    # ตรงกับในรูป Firestore
+                "money": item.get('money'),  # ตรงกับในรูป Firestore
+                "name": item.get('namebookbank'),
+                "rider": item.get('rider'),
+                "doc_id": doc.id
+            })
+
+        return jsonify({"status": "success", "data": results}), 200
+    except Exception as e:
+        # หากยังไม่ได้สร้าง Index จะมี Error พร้อม link ให้กดสร้างขึ้นที่นี่
+        print(f"Error: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 #------------------------------ update เพื่อให้รู้ว่า ร้านค้าชำระเงินแล้ว
 @app.route('/update-pay_shopservice', methods=['POST'])
 def update_status():
