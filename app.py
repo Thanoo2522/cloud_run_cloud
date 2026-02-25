@@ -2701,31 +2701,54 @@ def update_status():
 @app.route('/update_pay_rider', methods=['POST'])
 def update_pay_rider():
     try:
-        # รับค่า nameofm และ partnershop จาก Client
-        data = request.json
+        print("=== update_pay_rider called ===")
+
+        # ✅ รับ JSON แบบปลอดภัย
+        data = request.get_json(silent=True)
+
+        if not data:
+            return jsonify({"success": False, "error": "No JSON received"}), 400
+
         nameofm = data.get('nameofm')
         delname = data.get('delname')
 
+        print("nameofm:", nameofm)
+        print("delname:", delname)
+
         if not nameofm or not delname:
-            return jsonify({"error": "Missing parameters"}), 400
+            return jsonify({"success": False, "error": "Missing parameters"}), 400
 
-        # อ้างอิง Path พื้นฐาน
-        base_ref = db.collection('OFM_name').document(nameofm) \
-                     .collection('delivery').document(delname)
+        # ✅ อ้างอิง Path พื้นฐาน
+        base_ref = (
+            db.collection('OFM_name')
+              .document(nameofm)
+              .collection('delivery')
+              .document(delname)
+        )
 
-        # --- ส่วนที่ 1: อัปเดต costservice (pay: "not" -> "pass") ---
+        # ตรวจสอบ document มีจริงไหม
+        if not base_ref.get().exists:
+            return jsonify({"success": False, "error": "Delivery document not found"}), 404
+
+        # =====================================================
+        # ส่วนที่ 1: อัปเดต costservice
+        # =====================================================
         costservice_ref = base_ref.collection('costservice')
+
         cost_docs = costservice_ref.where('pay', '==', 'not').stream()
-        
+
         updated_cost_count = 0
         for doc in cost_docs:
             doc.reference.update({'pay': 'pass'})
             updated_cost_count += 1
 
-        # --- ส่วนที่ 2: อัปเดต bankrider (check: "notpay" -> "pass") ---
-        bankshop_ref = base_ref.collection('bankrider')
-        bank_docs = bankshop_ref.where('check', '==', 'notpay').stream()
-        
+        # =====================================================
+        # ส่วนที่ 2: อัปเดต bankrider
+        # =====================================================
+        bankrider_ref = base_ref.collection('bankrider')
+
+        bank_docs = bankrider_ref.where('check', '==', 'notpay').stream()
+
         updated_bank_count = 0
         for doc in bank_docs:
             doc.reference.update({'check': 'pass'})
@@ -2740,6 +2763,7 @@ def update_pay_rider():
         }), 200
 
     except Exception as e:
+        print("ERROR:", str(e))
         return jsonify({"success": False, "error": str(e)}), 500
 # ------------------------------------
 if __name__ == "__main__":
