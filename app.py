@@ -308,75 +308,89 @@ def get_products_by_mode(name_ofm, slave_name, view_modename):
 #-------------------------------------
 @app.route("/get_preorder", methods=["GET"])
 def get_preorder():
-    nameOfm = request.args.get("nameOfm")
-    userName = request.args.get("userName")
+    nameOfm = request.args.get("nameOfm")
+    userName = request.args.get("userName")
 
-    if not nameOfm or not userName:
-        return jsonify({
-            "status": "error",
-            "message": "Missing nameOfm or userName"
-        }), 400
+    if not nameOfm or not userName:
+        return jsonify({
+            "status": "error",
+            "message": "Missing nameOfm or userName"
+        }), 400
 
-    # อ้างอิงไปยัง Document ของลูกค้า (เช่น path: OFM_name/ตลาดเชียงกลมออนไลน์/customers/กิตติ)
-    customer_ref = (
-        db.collection("OFM_name")
-          .document(nameOfm)
-          .collection("customers")
-          .document(userName)
-    )
+    customer_ref = (
+        db.collection("OFM_name")
+          .document(nameOfm)
+          .collection("customers")
+          .document(userName)
+    )
 
-    customer_doc = customer_ref.get()
+    customer_doc = customer_ref.get()
 
-    if not customer_doc.exists:
-        # กรณีไม่พบข้อมูลลูกค้า (สร้างใหม่ตาม Logic เดิมของคุณ)
-        customer_ref.set({
-            "activeOrderId": "",
-            "createdAt": datetime.utcnow()
-        }, merge=True)
-        customer_doc = customer_ref.get()
+    # 1️⃣ ถ้ายังไม่มี customer → สร้าง
+    if not customer_doc.exists:
+        customer_ref.set({
+            "activeOrderId": "",
+            "createdAt": datetime.utcnow()
+        }, merge=True)
 
-    customer_data = customer_doc.to_dict() or {}
- 
-    # --- ดึงข้อมูลจากหน้าจอที่ปรากฏในรูปภาพ ---
-    active_order_id = customer_data.get("activeOrderId", "")
-    home_val = customer_data.get("home", "")        # ค่า "เชียงกลม"
-    address_val = customer_data.get("address", "")  # ค่า "431 หมู่2..."
-    phone_val = customer_data.get("phone", "")      # เบอร์โทรศัพท์
+        customer_doc = customer_ref.get()
 
-    # 2️⃣-3️⃣ Logic ตรวจสอบและสร้าง Order (คงเดิม)
-    need_new_order = False
-    if not active_order_id:
-        need_new_order = True
-    else:
-        check_ref = customer_ref.collection("orders").document(active_order_id)
-        if not check_ref.get().exists:
-            need_new_order = True
+    customer_data = customer_doc.to_dict() or {}
+    home_value = customer_data.get("home", "")
+    active_order_id = customer_data.get("activeOrderId", "")
 
-    if need_new_order:
-        timestamp_id = str(int(time.time() * 1000))
-        order_ref = customer_ref.collection("orders").document(timestamp_id)
-        order_ref.set({
-            "status": "draft",
-            "Preorder": 0,
-            "createdAt": datetime.utcnow()
-        })
-        customer_ref.update({"activeOrderId": timestamp_id})
-        active_order_id = timestamp_id
+    # 2️⃣ ตรวจว่าต้องสร้าง order ใหม่ไหม
+    need_new_order = False
 
-    # 4️⃣ อ่านข้อมูล Preorder จาก Order ล่าสุด
-    order_ref = customer_ref.collection("orders").document(active_order_id)
-    order_doc = order_ref.get()
-    order_data = order_doc.to_dict() or {}
+    if active_order_id == "":
+        need_new_order = True
+    else:
+        check_ref = (
+            customer_ref
+              .collection("orders")
+              .document(active_order_id)
+        )
+        if not check_ref.get().exists:
+            need_new_order = True
 
-    # ส่ง JSON กลับไปที่ MAUI พร้อมข้อมูลที่ดึงมาใหม่
-    return jsonify({
-        "status": "success",
-        "orderId": active_order_id,
-        "Preorder": order_data.get("Preorder", 0),
-        "home": home_val,      # ส่งค่า "เชียงกลม" กลับไป
-        "address": address_val,
-        "phone": phone_val
-    })
+    # 3️⃣ สร้าง order ใหม่
+    if need_new_order:
+        timestamp_id = str(int(time.time() * 1000))
+
+        order_ref = (
+            customer_ref
+              .collection("orders")
+              .document(timestamp_id)
+        )
+
+        order_ref.set({
+            "status": "draft",
+            "Preorder": 0,
+            "createdAt": datetime.utcnow()
+        })
+
+        customer_ref.update({
+            "activeOrderId": timestamp_id
+        })
+
+        active_order_id = timestamp_id
+
+    # 4️⃣ อ่าน Preorder
+    order_ref = (
+        customer_ref
+          .collection("orders")
+          .document(active_order_id)
+    )
+
+    order_doc = order_ref.get()
+    order_data = order_doc.to_dict() or {}
+
+    return jsonify({
+        "status": "success",
+        "Preorder": order_data.get("Preorder", 0),
+        "orderId": active_order_id
+        "home": home_value
+    })
 
 #---------------------------------------------
 @app.route("/get_customer", methods=["GET"])
