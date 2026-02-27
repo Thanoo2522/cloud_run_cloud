@@ -2191,12 +2191,13 @@ def register_customer():
         # --------- รับค่าจาก MAUI ---------
         name_ofm = data.get("name_ofm")
         username = data.get("username")
+        home = data.get("home")
         address = data.get("address")
         phone = data.get("phone")
         password = data.get("password")
 
         # --------- Validate ---------
-        if not all([name_ofm, username, address, phone, password]):
+        if not all([name_ofm, username,home, address, phone, password]):
             return jsonify({
                 "success": False,
                 "message": "ข้อมูลไม่ครบ"
@@ -2227,6 +2228,7 @@ def register_customer():
         user_ref.set({
             "username": username,
             "address": address,
+            "home": home,
             "phone": phone,
             "password_hash": generate_password_hash(password),
             "created_at": datetime.utcnow()
