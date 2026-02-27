@@ -2182,7 +2182,7 @@ def register_del():
             "message": str(e)
         }), 500
 
-#----------------------------------------------
+#-------------------------------------------
 @app.route("/register_user", methods=["POST"])
 def register_customer():
     try:
