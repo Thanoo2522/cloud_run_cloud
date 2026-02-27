@@ -308,8 +308,8 @@ def get_products_by_mode(name_ofm, slave_name, view_modename):
 #-------------------------------------
 @app.route("/get_preorder", methods=["GET"])
 def get_preorder():
-    nameOfm = request.args.get("nameOfm")
-    userName = request.args.get("userName")
+    nameOfm = request.args.get("nameofm")
+    userName = request.args.get("user")
 
     if not nameOfm or not userName:
         return jsonify({
