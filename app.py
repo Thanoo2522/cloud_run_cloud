@@ -379,7 +379,7 @@ def get_preorder():
     })
 
 
-#---------------------------------------------
+#-------------------------------------------
 @app.route("/get_customer", methods=["GET"])
 def get_customer():
     try:
