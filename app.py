@@ -388,8 +388,8 @@ def get_preorder():
     return jsonify({
         "status": "success",
         "Preorder": order_data.get("Preorder", 0),
-        "orderId": active_order_id
-        "home": home_value
+        "orderId": active_order_id,
+           "home": home_value
     })
 
 #---------------------------------------------
