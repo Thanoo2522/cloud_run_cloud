@@ -392,7 +392,7 @@ def get_preorder():
            "home": home_value
     })
 
-#---------------------------------------------
+#-------------------------------------------
 @app.route("/get_customer", methods=["GET"])
 def get_customer():
     try:
