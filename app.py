@@ -1669,19 +1669,17 @@ def get_order_items():
     return jsonify(items)
 
 
-
-
-#increase_item_quantity
-@app.route("/increase_item_quantity", methods=["POST"])
-def increase_item_quantity():
+@app.route("/update_quantity", methods=["POST"])
+def update_quantity():
     data = request.json or {}
 
     nameOfm = data.get("nameOfm")
     userName = data.get("userName")
     orderId = data.get("orderId")
     itemId = data.get("itemId")
+    numberproduct = data.get("numberproduct")
 
-    if not all([nameOfm, userName, orderId, itemId]):
+    if not all([nameOfm, userName, orderId, itemId]) or numberproduct is None:
         return jsonify({"status": "error"}), 400
 
     item_ref = (
@@ -1699,44 +1697,13 @@ def increase_item_quantity():
     if not item_doc.exists:
         return jsonify({"status": "not_found"}), 404
 
-    qty = item_doc.to_dict().get("numberproduct", 1)
-    item_ref.update({"numberproduct": qty + 1})
+    item_ref.update({
+        "numberproduct": numberproduct
+    })
 
     return jsonify({"status": "success"})
 
-#decrease_item_quantity
-@app.route("/decrease_item_quantity", methods=["POST"])
-def decrease_item_quantity():
-    data = request.json or {}
-
-    nameOfm = data.get("nameOfm")
-    userName = data.get("userName")
-    orderId = data.get("orderId")
-    itemId = data.get("itemId")
-
-    if not all([nameOfm, userName, orderId, itemId]):
-        return jsonify({"status": "error"}), 400
-
-    item_ref = (
-        db.collection("OFM_name")
-          .document(nameOfm)
-          .collection("customers")
-          .document(userName)
-          .collection("orders")
-          .document(orderId)
-          .collection("items")
-          .document(itemId)
-    )
-
-    item_doc = item_ref.get()
-    if not item_doc.exists:
-        return jsonify({"status": "not_found"}), 404
-
-    qty = item_doc.to_dict().get("numberproduct", 1)
-    if qty > 1:
-        item_ref.update({"numberproduct": qty - 1})
-
-    return jsonify({"status": "success"})
+ 
 
 #delete_item
 @app.route("/delete_item", methods=["POST"])
