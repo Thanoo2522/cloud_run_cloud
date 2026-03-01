@@ -1705,7 +1705,7 @@ def update_quantity():
 
  
 
-#delete_item
+#--delete_item
 @app.route("/delete_item", methods=["POST"])
 def delete_item():
     data = request.json or {}
