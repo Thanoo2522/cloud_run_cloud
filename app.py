@@ -826,7 +826,8 @@ def get_partner_orders():
                 "customer": {
                     "username": customer_data.get("username", user_name),
                     "phone": customer_data.get("phone", ""),
-                    "address": customer_data.get("address", "")
+                    "address": customer_data.get("address", ""),
+                     "home": customer_data.get("home", "")   # ✅ เพิ่มบรรทัดนี้
                 },
 
                 "items": items,
@@ -2670,7 +2671,7 @@ def update_pay_rider():
 
         # ✅ อ้างอิง Path พื้นฐาน
         base_ref = (
-            db.collection(nameofm)
+            db.collection('OFM_name')
               .document(nameofm)
               .collection('delivery')
               .document(delname)
