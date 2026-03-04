@@ -827,7 +827,7 @@ def get_partner_orders():
                     "username": customer_data.get("username", user_name),
                     "phone": customer_data.get("phone", ""),
                     "address": customer_data.get("address", ""),
-                    # "home": customer_data.get("home", "")   # ✅ เพิ่มบรรทัดนี้
+                     "home": customer_data.get("home", "")   # ✅ เพิ่มบรรทัดนี้
                 },
 
                 "items": items,
