@@ -275,7 +275,21 @@ def get_shops_by_mode(nameOfm, mode):
             shops.append(p.id)
 
     return jsonify(shops)
+    #-------------------------------------------
+@app.route("/search_adminmaster", methods=["GET"])
+def search_adminmaster():
+    keyword = request.args.get("q", "").lower().strip()
+    if not keyword:
+        return jsonify([])
 
+    docs = (
+        db.collection("OFM_name")
+        .where("search_prefix", "array_contains", keyword)
+        .limit(50)
+        .stream()
+    )
+
+    return jsonify([{"OFM_name": d.to_dict().get("OFM_name")} for d in docs])
 # --- ดึงสินค้า
 @app.route("/get_products/<name_ofm>/<slave_name>/<view_modename>", methods=["GET"])
 def get_products_by_mode(name_ofm, slave_name, view_modename):
