@@ -233,7 +233,7 @@ def get_modes_by_ofm(name_ofm):
     modes = []
 
     docs = (
-        db.collection("OFM_name")
+        db.collection(name_ofm)
           .document(name_ofm)
           .collection("modproduct")
           .stream()
@@ -255,7 +255,7 @@ def get_shops_by_mode(nameOfm, mode):
     shops = []
 
     partners = (
-        db.collection("OFM_name")
+        db.collection(nameOfm)
           .document(nameOfm)
           .collection("partner")
           .stream()
@@ -263,7 +263,7 @@ def get_shops_by_mode(nameOfm, mode):
 
     for p in partners:
         mode_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("partner")
               .document(p.id)
@@ -282,7 +282,7 @@ def get_products_by_mode(name_ofm, slave_name, view_modename):
     products = []
 
     docs = (
-        db.collection("OFM_name")
+        db.collection(name_ofm)
           .document(name_ofm)
           .collection("partner")
           .document(slave_name)
@@ -318,7 +318,7 @@ def get_preorder():
         }), 400
 
     customer_ref = (
-        db.collection("OFM_name")
+        db.collection(nameOfm)
           .document(nameOfm)
           .collection("customers")
           .document(userName)
@@ -400,7 +400,7 @@ def get_customer():
         userName = request.args.get("userName")
 
         doc_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("customers")
               .document(userName)
@@ -442,7 +442,7 @@ def add_item_preorder():
         return jsonify({"status": "error"}), 400
 
     order_ref = (
-        db.collection("OFM_name")
+        db.collection(nameOfm)
           .document(nameOfm)
           .collection("customers")
           .document(userName)
@@ -494,7 +494,7 @@ def partner_notifications():
             return jsonify({"success": False, "error": "missing parameters"})
 
         orders_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("partner")
               .document(partnershop)
@@ -549,7 +549,7 @@ def get_active_delivery():
             return jsonify({"error": "missing nameOfm"}), 400
 
         col_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("delivery")
         )
@@ -588,7 +588,7 @@ def update_delivery_price():
 
         # 🔹 path: OFM_name/{nameOfm}/delivery/{deluserName}
         del_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("delivery")
               .document(deluserName)
@@ -628,7 +628,7 @@ def get_delivery_user():
         # ofm/{nameOfm}/delivery_users/{deluserName}
         # -------------------------------
         doc_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("delivery")
               .document(deluserName)
@@ -687,7 +687,7 @@ def update_item_status():
         # 1️⃣ notification (ร้านนี้กด ready)
         # =====================================================
         notify_ref = (
-            db.collection("OFM_name")
+            db.collection(ofmname)
               .document(ofmname)
               .collection("partner")
               .document(partnershop)
@@ -702,7 +702,7 @@ def update_item_status():
         # 2️⃣ update order ของ rider → ร้านนี้ ready
         # =====================================================
         delivery_order_ref = (
-            db.collection("OFM_name")
+            db.collection(ofmname)
               .document(ofmname)
               .collection("delivery")
               .document(namerider)
@@ -766,7 +766,7 @@ def get_partner_orders():
             if user_name:
                 if user_name not in customer_cache:
                     cus_ref = (
-                        db.collection("OFM_name")
+                        db.collection(ofmname)
                           .document(ofmname)
                           .collection("customers")
                           .document(user_name)
@@ -786,7 +786,7 @@ def get_partner_orders():
             if rider_name:
                 if rider_name not in delivery_cache:
                     delivery_ref = (
-                        db.collection("OFM_name")
+                        db.collection(ofmname)
                           .document(ofmname)
                           .collection("delivery")
                           .document(rider_name)
@@ -883,7 +883,7 @@ def complete_delivery_order():
         # firestore path
         # -------------------------------
         order_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("delivery")
               .document(deluserName)
@@ -929,7 +929,7 @@ def get_prerider_orders():
             return jsonify({"error": "missing params"}), 400
 
         orders_ref = (
-            db.collection("OFM_name")
+            db.collection(ofmname)
               .document(ofmname)
               .collection("delivery")
               .document(delname)
@@ -1010,7 +1010,7 @@ def get_rider_orders():
             return jsonify({"error": "missing params"}), 400
 
         orders_ref = (
-            db.collection("OFM_name")
+            db.collection(ofmname)
               .document(ofmname)
               .collection("delivery")
               .document(delname)
@@ -1029,7 +1029,7 @@ def get_rider_orders():
 
             if username:
                 cust_doc = (
-                    db.collection("OFM_name")
+                    db.collection(ofmname)
                       .document(ofmname)
                       .collection("customers")
                       .document(username)
@@ -1106,7 +1106,7 @@ def final_order():
     orderId = request.args.get("orderId")
 
     ref = (
-        db.collection("OFM_name")
+        db.collection(ofmname)
           .document(ofmname)
           .collection("partner")
           .document(partnershop)
@@ -1133,7 +1133,7 @@ def get_notifications():
         return jsonify({"error": "missing params"}), 400
 
     docs = (
-        db.collection("OFM_name")
+        db.collection(nameOfm)
         .document(nameOfm)
         .collection("partner")
         .document(partnershop)
@@ -1181,7 +1181,7 @@ def get_costservice_orders():
         result = []
 
         costservice_docs = (
-            db.collection("OFM_name")
+            db.collection(ofmname)
             .document(ofmname)
             .collection("partner")
             .document(nameshop)
@@ -1242,7 +1242,7 @@ def get_costrider():
         # OFM_name/{nameOfm}/delivery/{del}/costservice
         # ------------------------------------------------
         costservice_col = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("delivery")
               .document(del_nameservice)
@@ -1346,7 +1346,7 @@ def confirm_order():
             return jsonify({"success": False, "error": "missing parameter"}), 400
 
         customer_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("customers")
               .document(userName)
@@ -1396,7 +1396,7 @@ def confirm_order():
         # notification (ไม่แตะ logic)
         for partnershop, items in partner_items.items():
             (
-                db.collection("OFM_name")
+                db.collection(nameOfm)
                   .document(nameOfm)
                   .collection("partner")
                   .document(partnershop)
@@ -1417,7 +1417,7 @@ def confirm_order():
             )
 
         call_rider_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("delivery")
               .document(del_nameservice)
@@ -1476,7 +1476,7 @@ def confirm_order():
             costservice_thisorder = round(calc_costservice(shop_total), 2)
 
             costservice_col = (
-                db.collection("OFM_name")
+                db.collection(nameOfm)
                   .document(nameOfm)
                   .collection("partner")
                   .document(partnershop)
@@ -1532,7 +1532,7 @@ def confirm_order():
             costrider_thisorder = round(calc_costrider(shop_total), 2)
 
             delivery_costservice_col = (
-                db.collection("OFM_name")
+                db.collection(nameOfm)
                   .document(nameOfm)
                   .collection("delivery")
                   .document(del_nameservice)
@@ -1604,7 +1604,7 @@ def mark_partner_notification_read():
             }), 400
 
         doc_ref = (
-            db.collection("OFM_name")
+            db.collection(nameOfm)
               .document(nameOfm)
               .collection("partner")
               .document(shopname)
@@ -1646,7 +1646,7 @@ def get_order_items():
     orderId = request.args.get("orderId")
 
     items_ref = (
-        db.collection("OFM_name").document(nameOfm)
+        db.collection(nameOfm).document(nameOfm)
           .collection("customers").document(userName)
           .collection("orders").document(orderId)
           .collection("items")
@@ -1683,7 +1683,7 @@ def update_quantity():
         return jsonify({"status": "error"}), 400
 
     item_ref = (
-        db.collection("OFM_name")
+        db.collection(nameOfm)
           .document(nameOfm)
           .collection("customers")
           .document(userName)
@@ -1719,7 +1719,7 @@ def delete_item():
         return jsonify({"status": "error"}), 400
 
     order_ref = (
-        db.collection("OFM_name")
+        db.collection(nameOfm)
           .document(nameOfm)
           .collection("customers")
           .document(userName)
@@ -1792,7 +1792,7 @@ def save_product():
 
         # 2) Save product (logic เดิม)
         doc_ref = (
-            db.collection("OFM_name")
+            db.collection(name_ofm)
               .document(name_ofm)
               .collection("partner")
               .document(slave_name)
@@ -1815,7 +1815,7 @@ def save_product():
 
         # 3) modproduct (เดิม)
         mode_ref = (
-            db.collection("OFM_name")
+            db.collection(name_ofm)
               .document(name_ofm)
               .collection("modproduct")
               .document(view_modename)
@@ -1850,7 +1850,7 @@ def load_orders():
             return jsonify([])
  
         items_ref = (
-            db.collection("OFM_name")
+            db.collection(ofmname)
               .document(ofmname)
               .collection("customers")
               .document(username)
@@ -1941,7 +1941,7 @@ def register_admin_full():
             return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ"}), 400
 
         # check OFM duplicate
-        ofm_ref = db.collection("OFM_name").document(nameofm)
+        ofm_ref = db.collection(nameofm).document(nameofm)
         if ofm_ref.get().exists:
             return jsonify({"status": "error", "message": "ชื่อร้านซ้ำ"}), 200
 
@@ -1949,7 +1949,7 @@ def register_admin_full():
             return jsonify({"status": "error", "message": "รหัสผ่านต้อง 6 หลัก"}), 200
 
         ofm_ref.set({
-            "OFM_name": nameofm,
+             nameofm : nameofm,
             "OFM_name_lower": nameofm.lower(),
             "search_prefix": build_prefixes(nameofm),
             "created_at": firestore.SERVER_TIMESTAMP
@@ -1976,21 +1976,7 @@ def register_admin_full():
 # ------------------------------------
 # Search OFM
 # ------------------------------------
-@app.route("/search_adminmaster", methods=["GET"])
-def search_adminmaster():
-    keyword = request.args.get("q", "").lower().strip()
-    if not keyword:
-        return jsonify([])
-
-    docs = (
-        db.collection("OFM_name")
-        .where("search_prefix", "array_contains", keyword)
-        .limit(50)
-        .stream()
-    )
-
-    return jsonify([{"OFM_name": d.to_dict().get("OFM_name")} for d in docs])
-
+ 
 # ------------------------------------
  
 import traceback
@@ -2108,7 +2094,7 @@ def register_del():
             }), 400
 
         # --------- Firestore Path ---------
-        ofm_ref = db.collection("OFM_name").document(name_ofm)
+        ofm_ref = db.collection(name_ofm).document(name_ofm)
         del_ref = (
             ofm_ref
             .collection("delivery")
@@ -2124,7 +2110,7 @@ def register_del():
 
         # --------- Save OFM (merge) ---------
         ofm_ref.set({
-            "OFM_name": name_ofm,
+            name_ofm : name_ofm,
             "updated_at": datetime.utcnow()
         }, merge=True)
 
@@ -2173,7 +2159,7 @@ def register_customer():
             }), 400
 
         # --------- Firestore Path ---------
-        ofm_ref = db.collection("OFM_name").document(name_ofm)
+        ofm_ref = db.collection(name_ofm).document(name_ofm)
         user_ref = (
             ofm_ref
             .collection("customers")
@@ -2189,7 +2175,7 @@ def register_customer():
 
         # --------- Save OFM (merge) ---------
         ofm_ref.set({
-            "OFM_name": name_ofm,
+            name_ofm : name_ofm,
             "updated_at": datetime.utcnow()
         }, merge=True)
 
@@ -2233,7 +2219,7 @@ def register_slave():
             }), 400
 
         # ---------------- Firestore Path ----------------
-        ofm_ref = db.collection("OFM_name").document(name_ofm)
+        ofm_ref = db.collection(name_ofm).document(name_ofm)
         slave_ref = (
             ofm_ref
             .collection("partner")
@@ -2249,7 +2235,7 @@ def register_slave():
 
         # ---------------- Save Firestore ----------------
         ofm_ref.set({
-            "OFM_name": name_ofm,
+            name_ofm : name_ofm,
             "updated_at": datetime.utcnow()
         }, merge=True)
 
@@ -2310,7 +2296,7 @@ def del_password():
         # -------- Firestore path --------
         # OFM_name/{name_ofm}/delivery/{del_name}
         del_ref = (
-            db.collection("OFM_name")
+            db.collection(name_ofm)
               .document(name_ofm)
               .collection("delivery")
               .document(del_name)
@@ -2373,7 +2359,7 @@ def user_password():
         # -------- Firestore path --------
         # OFM_name/{name_ofm}/customers/{user_name}
         user_ref = (
-            db.collection("OFM_name")
+            db.collection(name_ofm)
               .document(name_ofm)
               .collection("customers")
               .document(user_name)
@@ -2436,7 +2422,7 @@ def slave_password():
         # 📌 Firestore path
         # OFM_name/{name_ofm}/partner/{slave_name}
         slave_ref = (
-            db.collection("OFM_name")
+            db.collection(name_ofm)
               .document(name_ofm)
               .collection("partner")
               .document(slave_name)
@@ -2505,7 +2491,7 @@ def paymentrider():
         }
        #/OFM_name/ตลาดเชียงกลมออนไลน์/delivery/fresh
         # 2. เปลี่ยนชื่อ document จาก "bank_notification" เป็น doc_id
-        doc_ref = db.collection("OFM_name").document(ofmname)\
+        doc_ref = db.collection(ofmname).document(ofmname)\
                     .collection("delivery").document(ridername)\
                     .collection("bankrider").document(doc_id)
         
@@ -2548,7 +2534,7 @@ def submit_payment():
         }
 
         # 2. เปลี่ยนชื่อ document จาก "bank_notification" เป็น doc_id
-        doc_ref = db.collection("OFM_name").document(ofmname)\
+        doc_ref = db.collection(ofmname).document(ofmname)\
                     .collection("partner").document(partnershop)\
                     .collection("bankshop").document(doc_id)
         
@@ -2634,7 +2620,7 @@ def update_status():
             return jsonify({"error": "Missing parameters"}), 400
 
         # อ้างอิง Path พื้นฐาน
-        base_ref = db.collection('OFM_name').document(nameofm) \
+        base_ref = db.collection(nameofm).document(nameofm) \
                      .collection('partner').document(partnershop)
 
         # --- ส่วนที่ 1: อัปเดต costservice (pay: "not" -> "pass") ---
@@ -2691,7 +2677,7 @@ def update_pay_rider():
 
         # ✅ อ้างอิง Path พื้นฐาน
         base_ref = (
-            db.collection('OFM_name')
+            db.collection(nameofm)
               .document(nameofm)
               .collection('delivery')
               .document(delname)
