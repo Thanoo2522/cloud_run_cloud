@@ -417,7 +417,8 @@ def get_customer():
         return jsonify({
             "CustomerName": data.get("username"),
             "PhoneNumber": data.get("phone"),
-            "Address": data.get("address")
+            "Address": data.get("address"),
+              "home": data.get("home")
         }), 200
 
     except Exception as e:
