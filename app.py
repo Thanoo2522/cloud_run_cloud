@@ -848,7 +848,8 @@ def get_partner_orders():
                 "customer": {
                     "username": customer_data.get("username", user_name),
                     "phone": customer_data.get("phone", ""),
-                    "address": customer_data.get("address", "")
+                    "address": customer_data.get("address", ""),
+                    "home": customer_data.get("home", "")
                 },
 
                 "items": items,
