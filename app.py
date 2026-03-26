@@ -1950,7 +1950,7 @@ def register_admin_full():
             return jsonify({"status": "error", "message": "รหัสผ่านต้อง 6 หลัก"}), 200
 
         ofm_ref.set({
-             nameofm : nameofm,
+             "nameofm" : nameofm,
             "OFM_name_lower": nameofm.lower(),
             "search_prefix": build_prefixes(nameofm),
             "created_at": firestore.SERVER_TIMESTAMP
