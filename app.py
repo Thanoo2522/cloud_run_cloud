@@ -1043,7 +1043,7 @@ def get_rider_orders():
                     customer = {
                         "name": c.get("name", c.get("username", "")),
                         "phone": c.get("phone", ""),
-                        "address": c.get("address", "")
+                        "address": c.get("address", ""),
                         "home": c.get("home", "")
                     }
 
