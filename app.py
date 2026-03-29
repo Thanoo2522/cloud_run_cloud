@@ -1047,7 +1047,7 @@ def get_rider_orders():
                         "home": c.get("home", "")
                     }
 
-            # ---------- items -----
+            # ---------- items -
             items = []
             total_price = 0
             serial = 1
