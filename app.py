@@ -1026,7 +1026,7 @@ def get_rider_orders():
         for doc in orders_ref.stream():
             data = doc.to_dict()
 
-            # ---------- customer ----------
+            # ---------- customer ------- 
             username = data.get("username", "")
             customer = {}
 
@@ -1047,7 +1047,7 @@ def get_rider_orders():
                         "home": c.get("home", "")
                     }
 
-            # ---------- items ----------
+            # ---------- items -----
             items = []
             total_price = 0
             serial = 1
