@@ -2726,7 +2726,7 @@ def update_pay_rider():
     except Exception as e:
         print("ERROR:", str(e))
         return jsonify({"success": False, "error": str(e)}), 500
-#---------------ดึง made + prooduct มาให้ร้านจัดการเรื่อเปลี่ยนราคา ------------
+#---------------ดึง made + prooduct มาให้ร้านจัดการเรื่อเปลี่ยนราคา --- 
 @app.route('/api/v1/store_full', methods=['GET'])
 def store_full_api():
     try:
