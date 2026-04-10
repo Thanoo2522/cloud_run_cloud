@@ -2747,26 +2747,9 @@ def store_full_api():
         for m_doc in modes_docs:
             mode_name = m_doc.id
             
-            # 2. ดึง Product ภายใต้แต่ละ Mode (วน Loop ในตัวเดียว)
-            products_ref = shop_ref.collection('mode').document('อาหารทะเล').collection('product').stream()
-            product_list = []
-            for p_doc in products_ref:
-                p_data = p_doc.to_dict()
-                product_list.append({
-                    "productname": p_data.get("productname", ""),
-                    "priceproduct": p_data.get("priceproduct", 0),
-                    "image_url": p_data.get("image_url", ""),
-                    "dataproduct": p_data.get("dataproduct", ""),
-                    "mode": mode_name # เก็บไว้เผื่อใช้ Filter
-                })
-            
-            # รวม Mode และ List ของ Product
-            full_data.append({
-                "ModeName": mode_name,
-                "Products": product_list
-            })
+  
 
-        return jsonify(full_data), 200
+        return jsonify(mode_name), 200
 
     except Exception as e:
         print(traceback.format_exc())
