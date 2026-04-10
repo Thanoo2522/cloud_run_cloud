@@ -2727,34 +2727,33 @@ def update_pay_rider():
         print("ERROR:", str(e))
         return jsonify({"success": False, "error": str(e)}), 500
 #---------------ดึง made + prooduct มาให้ร้านจัดการเรื่อเปลี่ยนราคา --- 
-from flask import request, jsonify
-import traceback
-
 @app.route('/api/v1/store_full', methods=['GET'])
 def store_full_api():
     try:
         ofmname = request.args.get('ofmname')
         slaveshopname = request.args.get('slaveshopname')
 
-        if not ofmname or not slaveshopname:
-            return jsonify({"error": "Missing parameters"}), 400
-
-        # อ้างอิงไปยังตำแหน่ง Shop
         shop_ref = db.collection(ofmname).document(ofmname) \
                      .collection('partner').document(slaveshopname)
 
-        # 🔹 1. ดึง Mode ทั้งหมด
-        modes_docs = shop_ref.collection('mode').stream()
+        print("PATH:", shop_ref.path)
 
-        full_data = []
+        # 🔹 debug partner
+        partners = db.collection(ofmname).document(ofmname).collection('partner').stream()
+        for p in partners:
+            print("PARTNER:", p.id)
 
-        for m_doc in modes_docs:
-            mode_name = m_doc.id
-            full_data.append(mode_name)
+        # 🔹 ดึง mode
+        modes_docs = list(shop_ref.collection('mode').stream())
+        print("MODE COUNT:", len(modes_docs))
 
-        # 🔹 ถ้าไม่มี mode เลย
+        full_data = [m.id for m in modes_docs]
+
         if not full_data:
-            return jsonify({"message": "no modes found"}), 200
+            return jsonify({
+                "message": "no modes found",
+                "debug_path": shop_ref.path + "/mode"
+            }), 200
 
         return jsonify(full_data), 200
 
