@@ -2748,7 +2748,7 @@ def store_full_api():
             mode_name = m_doc.id
             
             # 2. ดึง Product ภายใต้แต่ละ Mode (วน Loop ในตัวเดียว)
-            products_ref = shop_ref.collection('mode').document(mode_name).collection('product').stream()
+            products_ref = shop_ref.collection('mode').document('อาหารทะเล').collection('product').stream()
             product_list = []
             for p_doc in products_ref:
                 p_data = p_doc.to_dict()
