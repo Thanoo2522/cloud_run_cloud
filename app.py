@@ -2727,35 +2727,42 @@ def update_pay_rider():
         print("ERROR:", str(e))
         return jsonify({"success": False, "error": str(e)}), 500
 #---------------ดึง made + prooduct มาให้ร้านจัดการเรื่อเปลี่ยนราคา --- 
-@app.route('/api/v1/store_full', methods=['GET'])
-def store_full_api():
+from flask import request, jsonify
+import traceback
+
+@app.route('/api/v1/get_modes', methods=['GET'])
+def get_modes():
     try:
         ofmname = request.args.get('ofmname')
         slaveshopname = request.args.get('slaveshopname')
 
+        if not ofmname or not slaveshopname:
+            return jsonify({"error": "Missing parameters"}), 400
+
+        # 🔹 อ้างอิง path
         shop_ref = db.collection(ofmname).document(ofmname) \
                      .collection('partner').document(slaveshopname)
 
-        print("PATH:", shop_ref.path)
+        # 🔹 ดึง document ใต้ mode (แม้ไม่มี field ก็เห็น)
+        mode_refs = shop_ref.collection('mode').list_documents()
 
-        # 🔹 debug partner
-        partners = db.collection(ofmname).document(ofmname).collection('partner').stream()
-        for p in partners:
-            print("PARTNER:", p.id)
+        modes = []
 
-        # 🔹 ดึง mode
-        modes_docs = list(shop_ref.collection('mode').stream())
-        print("MODE COUNT:", len(modes_docs))
+        for doc_ref in mode_refs:
+            print("MODE:", doc_ref.id)
+            modes.append(doc_ref.id)
 
-        full_data = [m.id for m in modes_docs]
-
-        if not full_data:
+        if not modes:
             return jsonify({
                 "message": "no modes found",
-                "debug_path": shop_ref.path + "/mode"
+                "path": shop_ref.path + "/mode"
             }), 200
 
-        return jsonify(full_data), 200
+        return jsonify({
+            "ofmname": ofmname,
+            "slaveshopname": slaveshopname,
+            "modes": modes
+        }), 200
 
     except Exception as e:
         print(traceback.format_exc())
