@@ -2730,8 +2730,8 @@ def update_pay_rider():
 from flask import request, jsonify
 import traceback
 
-@app.route('/api/v1/get_modes', methods=['GET'])
-def get_modes():
+@app.route('/api/v1/store_full', methods=['GET'])
+def store_full():
     try:
         ofmname = request.args.get('ofmname')
         slaveshopname = request.args.get('slaveshopname')
@@ -2743,25 +2743,51 @@ def get_modes():
         shop_ref = db.collection(ofmname).document(ofmname) \
                      .collection('partner').document(slaveshopname)
 
-        # 🔹 ดึง document ใต้ mode (แม้ไม่มี field ก็เห็น)
+        # 🔹 ดึง mode ทั้งหมด (ใช้ list_documents กัน ghost doc)
         mode_refs = shop_ref.collection('mode').list_documents()
 
-        modes = []
+        result = []
 
-        for doc_ref in mode_refs:
-            print("MODE:", doc_ref.id)
-            modes.append(doc_ref.id)
+        for mode_ref in mode_refs:
+            mode_name = mode_ref.id
+            print("MODE:", mode_name)
 
-        if not modes:
+            products = []
+
+            # 🔹 ดึง product ใต้แต่ละ mode
+            product_docs = mode_ref.collection('product').stream()
+
+            for p_doc in product_docs:
+                data = p_doc.to_dict() or {}
+
+                product_item = {
+                    "id": p_doc.id,
+                    "productname": data.get("productname"),
+                    "priceproduct": data.get("priceproduct"),
+                    "image_url": data.get("image_url"),
+                    "dataproduct": data.get("dataproduct"),
+                    "mode": data.get("mode"),
+                    "created_at": str(data.get("created_at")) if data.get("created_at") else None
+                }
+
+                products.append(product_item)
+
+            result.append({
+                "mode": mode_name,
+                "products": products
+            })
+
+        # 🔹 กันเคสไม่มีข้อมูล
+        if not result:
             return jsonify({
-                "message": "no modes found",
-                "path": shop_ref.path + "/mode"
+                "message": "no data found",
+                "path": shop_ref.path
             }), 200
 
         return jsonify({
             "ofmname": ofmname,
             "slaveshopname": slaveshopname,
-            "modes": modes
+            "data": result
         }), 200
 
     except Exception as e:
