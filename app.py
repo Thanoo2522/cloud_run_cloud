@@ -2727,6 +2727,9 @@ def update_pay_rider():
         print("ERROR:", str(e))
         return jsonify({"success": False, "error": str(e)}), 500
 #---------------ดึง made + prooduct มาให้ร้านจัดการเรื่อเปลี่ยนราคา --- 
+from flask import request, jsonify
+import traceback
+
 @app.route('/api/v1/store_full', methods=['GET'])
 def store_full_api():
     try:
@@ -2737,19 +2740,23 @@ def store_full_api():
             return jsonify({"error": "Missing parameters"}), 400
 
         # อ้างอิงไปยังตำแหน่ง Shop
-        shop_ref = db.collection(ofmname).document(ofmname)\
+        shop_ref = db.collection(ofmname).document(ofmname) \
                      .collection('partner').document(slaveshopname)
 
-        # 1. ดึง Mode ทั้งหมด
+        # 🔹 1. ดึง Mode ทั้งหมด
         modes_docs = shop_ref.collection('mode').stream()
-        
+
         full_data = []
+
         for m_doc in modes_docs:
             mode_name = m_doc.id
-            
-  
+            full_data.append(mode_name)
 
-        return jsonify(mode_name), 200
+        # 🔹 ถ้าไม่มี mode เลย
+        if not full_data:
+            return jsonify({"message": "no modes found"}), 200
+
+        return jsonify(full_data), 200
 
     except Exception as e:
         print(traceback.format_exc())
