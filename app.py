@@ -2726,6 +2726,52 @@ def update_pay_rider():
     except Exception as e:
         print("ERROR:", str(e))
         return jsonify({"success": False, "error": str(e)}), 500
+#---------------ดึง made + prooduct มาให้ร้านจัดการเรื่อเปลี่ยนราคา ------------
+@app.route('/api/v1/store_full', methods=['GET'])
+def store_full_api():
+    try:
+        ofmname = request.args.get('ofmname')
+        slaveshopname = request.args.get('slaveshopname')
+
+        if not ofmname or not slaveshopname:
+            return jsonify({"error": "Missing parameters"}), 400
+
+        # อ้างอิงไปยังตำแหน่ง Shop
+        shop_ref = db.collection(ofmname).document(ofmname)\
+                     .collection('partner').document(slaveshopname)
+
+        # 1. ดึง Mode ทั้งหมด
+        modes_docs = shop_ref.collection('mode').stream()
+        
+        full_data = []
+        for m_doc in modes_docs:
+            mode_name = m_doc.id
+            
+            # 2. ดึง Product ภายใต้แต่ละ Mode (วน Loop ในตัวเดียว)
+            products_ref = shop_ref.collection('mode').document(mode_name).collection('product').stream()
+            product_list = []
+            for p_doc in products_ref:
+                p_data = p_doc.to_dict()
+                product_list.append({
+                    "productname": p_data.get("productname", ""),
+                    "priceproduct": p_data.get("priceproduct", 0),
+                    "image_url": p_data.get("image_url", ""),
+                    "dataproduct": p_data.get("dataproduct", ""),
+                    "mode": mode_name # เก็บไว้เผื่อใช้ Filter
+                })
+            
+            # รวม Mode และ List ของ Product
+            full_data.append({
+                "ModeName": mode_name,
+                "Products": product_list
+            })
+
+        return jsonify(full_data), 200
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
 # ------------------------------ 
 if __name__ == "__main__":
     app.run(debug=True)
