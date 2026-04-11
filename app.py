@@ -2793,7 +2793,40 @@ def store_full():
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
+#----------------------เปลี่ยนราคาสินค้า----
+@app.route('/api/v1/store_full', methods=['POST'])
+def update_product():
+    try:
+        data = request.json
 
+        ofmname = data.get("ofmname")
+        slaveshopname = data.get("slaveshopname")
+        mode = data.get("mode")
+        product_id = data.get("productId")
+
+        dataproduct = data.get("dataproduct")
+        priceproduct = data.get("priceproduct")
+
+        if not all([ofmname, slaveshopname, mode, product_id]):
+            return jsonify({"error": "missing params"}), 400
+
+        # 🔥 path เดิม
+        product_ref = db.collection(ofmname).document(ofmname) \
+            .collection('partner').document(slaveshopname) \
+            .collection('mode').document(mode) \
+            .collection('product').document(product_id)
+
+        # 🔥 update
+        product_ref.update({
+            "dataproduct": dataproduct,
+            "priceproduct": priceproduct
+        })
+
+        return jsonify({"message": "updated successfully"}), 200
+
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 # ------------------------------ 
 if __name__ == "__main__":
     app.run(debug=True)
