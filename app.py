@@ -118,6 +118,34 @@ def calc_costrider(price_total: float) -> float:
     except Exception as e:
         print("calc_costrider error:", e)
         return 0
+#--------------------------- ใช้ใน line OA--------------------------------------
+@app.route("/create_data1", methods=["POST"])
+def create_data1():
+    try:
+        data = request.get_json()
+
+        # รับค่าจาก App Script
+        value = data.get("data1", "default")
+
+        # 🔥 เขียน Firestore
+        db.collection("data1").document("subdata").set({
+            "data1": value,
+            "timestamp": datetime.utcnow()
+        })
+
+        return jsonify({
+            "status": "success",
+            "message": "Data saved",
+            "value": value
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+#------------------------------------------------------------------------------
 
 #-----------------------ดึงรูปจาก Firebase Storage----------------------------------------
 @app.route("/get_bookbank_images", methods=["GET"])
