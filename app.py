@@ -119,33 +119,77 @@ def calc_costrider(price_total: float) -> float:
         print("calc_costrider error:", e)
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
-@app.route("/create_data1", methods=["POST"])
-def create_data1():
+#=============================================================================
+@app.route("/webhook", methods=["POST"])
+def webhook():
     try:
-        data = request.get_json()
+        body = request.get_json()
+        print("LINE EVENT:", json.dumps(body, indent=2))
 
-        # รับค่าจาก App Script
-        value = data.get("data1", "default")
+        events = body.get("events", [])
 
-        # 🔥 เขียน Firestore
-        db.collection("data1").document("subdata").set({
-            "data1": value,
-            "timestamp": datetime.utcnow()
-        })
+        for event in events:
+            if event.get("type") == "message":
+                if event["message"]["type"] == "text":
 
-        return jsonify({
-            "status": "success",
-            "message": "Data saved",
-            "value": value
-        }), 200
+                    user_message = event["message"]["text"]
+
+                    # 🔥 แยก ofm | message
+                    parts = user_message.split("|")
+
+                    if len(parts) < 2:
+                        return "FORMAT ERROR", 200
+
+                    ofm = parts[0].strip()
+                    message = parts[1].strip()
+
+                    user_id = event["source"].get("userId")
+
+                    # 🔥 path Firestore
+                    doc_ref = db.collection("ofm_servers") \
+                                .document(ofm) \
+                                .collection("LineOA") \
+                                .document("channel")
+
+                    # 🔥 บันทึกลง Firebase
+                    doc_ref.set({
+                        "last_message": message,
+                        "last_user_id": user_id,
+                        "last_timestamp": datetime.utcnow().isoformat()
+                    }, merge=True)
+
+                    # ✅ reply กลับ LINE
+                    reply_token = event.get("replyToken")
+
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": "Bearer YOUR_CHANNEL_ACCESS_TOKEN"
+                    }
+
+                    payload = {
+                        "replyToken": reply_token,
+                        "messages": [
+                            {
+                                "type": "text",
+                                "text": f"บันทึกแล้ว OFM: {ofm}"
+                            }
+                        ]
+                    }
+
+                    requests.post(
+                        "https://api.line.me/v2/bot/message/reply",
+                        headers=headers,
+                        json=payload
+                    )
+
+        return "OK", 200
+
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
-
+        print("ERROR:", str(e))
+        return "ERROR", 500
 #------------------------------------------------------------------------------
+#=================================end line OA ====================================
 
 #-----------------------ดึงรูปจาก Firebase Storage----------------------------------------
 @app.route("/get_bookbank_images", methods=["GET"])
