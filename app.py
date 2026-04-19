@@ -119,14 +119,41 @@ def calc_costrider(price_total: float) -> float:
         print("calc_costrider error:", e)
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
+
 #=============================================================================
+def get_line_config(ofm):
+    try:
+        doc_ref = db.collection(ofm) \
+                    .document(ofm) \
+                    .collection("LineOA") \
+                    .document("channel")
+
+        doc = doc_ref.get()
+
+        if not doc.exists:
+            print(f"❌ ไม่พบ config ของ OFM: {ofm}")
+            return None
+
+        data = doc.to_dict()
+
+        return {
+            "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
+            "secret": data.get("LINE_CHANNEL_SECRET")
+        }
+
+    except Exception as e:
+        print("ERROR get_line_config:", str(e))
+        return None
+    #---------------------------------------------------------------
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        body = request.get_json()
-        print("LINE EVENT:", json.dumps(body, indent=2))
+        body = request.get_data()
+        body_json = json.loads(body)
 
-        events = body.get("events", [])
+        print("LINE EVENT:", json.dumps(body_json, indent=2))
+
+        events = body_json.get("events", [])
 
         for event in events:
             if event.get("type") == "message":
@@ -135,35 +162,44 @@ def webhook():
                     user_message = event["message"]["text"]
 
                     # 🔥 แยก ofm | message
-                    parts = user_message.split("|")
+                    parts = user_message.split("|", 1)
 
                     if len(parts) < 2:
-                        return "FORMAT ERROR", 200
+                        continue
 
                     ofm = parts[0].strip()
                     message = parts[1].strip()
 
                     user_id = event["source"].get("userId")
 
-                    # 🔥 path Firestore
+                    # 🔥 ดึง config จาก Firebase
+                    config = get_line_config(ofm)
+
+                    if not config:
+                        print("❌ ไม่มี config")
+                        continue
+
+                    CHANNEL_ACCESS_TOKEN = config["access_token"]
+                    CHANNEL_SECRET = config["secret"]
+
+                    # 🔥 Firestore
                     doc_ref = db.collection("ofm_servers") \
                                 .document(ofm) \
                                 .collection("LineOA") \
                                 .document("channel")
 
-                    # 🔥 บันทึกลง Firebase
                     doc_ref.set({
                         "last_message": message,
                         "last_user_id": user_id,
                         "last_timestamp": datetime.utcnow().isoformat()
                     }, merge=True)
 
-                    # ✅ reply กลับ LINE
+                    # 🔥 reply
                     reply_token = event.get("replyToken")
 
                     headers = {
                         "Content-Type": "application/json",
-                        "Authorization": "Bearer YOUR_CHANNEL_ACCESS_TOKEN"
+                        "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
                     }
 
                     payload = {
@@ -171,7 +207,7 @@ def webhook():
                         "messages": [
                             {
                                 "type": "text",
-                                "text": f"บันทึกแล้ว OFM: {ofm}"
+                                "text": f"OFM: {ofm} บันทึกแล้ว"
                             }
                         ]
                     }
@@ -184,9 +220,9 @@ def webhook():
 
         return "OK", 200
 
-
     except Exception as e:
         print("ERROR:", str(e))
+        traceback.print_exc()
         return "ERROR", 500
 #------------------------------------------------------------------------------
 #=================================end line OA ====================================
