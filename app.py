@@ -183,7 +183,7 @@ def webhook():
                     CHANNEL_SECRET = config["secret"]
 
                     # 🔥 Firestore
-                    doc_ref = db.collection("ofm_servers") \
+                    doc_ref = db.collection(ofm) \
                                 .document(ofm) \
                                 .collection("LineOA") \
                                 .document("channel")
