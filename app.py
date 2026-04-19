@@ -207,7 +207,7 @@ def webhook():
                         "messages": [
                             {
                                 "type": "text",
-                                "text": f"OFM: {ofm} บันทึกแล้ว"
+                                "text": f"OFM: {ofm} บันทึกแล้วนะ"
                             }
                         ]
                     }
