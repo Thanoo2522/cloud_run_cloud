@@ -165,7 +165,7 @@ def get_line_config(ofm):
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
-def build_flex_category(items):
+def build_flex_category(ofm_name,items):
     bubbles = []
     
     # แบ่งกลุ่มหมวดหมู่ทีละ 4 รายการต่อ 1 Bubble (การ์ด 1 ใบ)
@@ -183,7 +183,7 @@ def build_flex_category(items):
                 "action": {
                     "type": "message",
                     "label": item,           # ชื่อหมวดหมู่ที่แสดงบนปุ่ม
-                    "text": f"mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
+                    "text": f"{ofm_name}|mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
                 }
             })
             
@@ -248,7 +248,7 @@ def get_partners_direct(ofm):
 # ===============================================================
 # 4. ฟังก์ชันสร้าง Flex Partner (รองรับ 40 รายการ)
 # ===============================================================
-def build_flex_partners(ofm_name, partners):
+def build_flex_partners(ofm_name,modename, partners):
     bubbles = []
     # แบ่งกลุ่ม Partner ทีละ 4 รายการต่อ 1 Bubble
     for i in range(0, len(partners), 4):
@@ -264,7 +264,7 @@ def build_flex_partners(ofm_name, partners):
                 "action": {
                     "type": "message",
                     "label": p_name,
-                    "text": f"partner|{ofm_name}|{p_name}" 
+                    "text": f"{ofm_name}|partner|{modename}|{p_name}" 
                 }
             })
         bubbles.append({
@@ -274,7 +274,7 @@ def build_flex_partners(ofm_name, partners):
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": "🤝 รายชื่อร้านค้า", "weight": "bold", "size": "md", "color": "#008CFF"},
+                    {"type": "text", "text": "🤝 เลือกร้านค้า", "weight": "bold", "size": "md", "color": "#008CFF"},
                     {"type": "box", "layout": "vertical", "contents": buttons, "margin": "md", "spacing": "sm"}
                 ],
                 "paddingAll": "20px"
@@ -305,6 +305,8 @@ def webhook():
 
                 ofm_name = parts[0].strip()
                 command = parts[1].strip()
+                modename= parts[2].strip()
+                shopname = parts[3].strip()
                 reply_token = event.get("replyToken")
 
                 # ================= CASE เดิม =================
@@ -327,7 +329,7 @@ def webhook():
                     messages_to_send = []
                     
                     if items:
-                        flex_payload = build_flex_category(items)
+                        flex_payload = build_flex_category(ofm_name,items)
                         messages_to_send.append(flex_payload)
                     else:
                         messages_to_send.append({
@@ -352,21 +354,20 @@ def webhook():
                         print(f"❌ Error Detail: {res.text}")
 
                 # ================= 🔵 CASE ใหม่: mode|หมวด =================
-                elif ofm_name == "mode":
+                elif command == "mode":
 
-                    category_name = command   # เช่น "ไก่ทอด"
+                    mode_name = modename   # เช่น "ไก่ทอด"
 
                     # ⚠️ ใช้ร้านหลัก (ตามโครงสร้างคุณ)
-                    real_ofm = "เชียงกลมออนไลน์"
-
-                    config = get_line_config(real_ofm)
+                     
+                    config = get_line_config(ofm_name)
                     if not config:
-                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {real_ofm}")
+                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
                         continue
 
                     access_token = config["access_token"]
 
-                    partners = get_partners_direct(real_ofm)
+                    partners = get_partners_direct(ofm_name)
 
                     headers = {
                         "Content-Type": "application/json",
@@ -376,12 +377,12 @@ def webhook():
                     messages_to_send = []
 
                     if partners:
-                        flex_payload = build_flex_partners(category_name, partners)
+                        flex_payload = build_flex_partners(ofm_name,mode_name, partners)
                         messages_to_send.append(flex_payload)
                     else:
                         messages_to_send.append({
                             "type": "text",
-                            "text": f"❌ ไม่พบร้านค้าในหมวด {category_name}"
+                            "text": f"❌ ไม่พบร้านค้าในหมวด {mode_name}"
                         })
 
                     payload = {
@@ -395,7 +396,7 @@ def webhook():
                         json=payload
                     )
 
-                    print(f"📤 mode -> partner [{category_name}]: {res.status_code}")
+                    print(f"📤 mode -> partner [{mode_name}]: {res.status_code}")
 
                     if res.status_code != 200:
                         print(f"❌ Error Detail: {res.text}")
