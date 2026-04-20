@@ -365,7 +365,7 @@ def build_flex_products(products):
 
         bubbles.append({
             "type": "bubble",
-            "size": "micro",
+            "size": "kilo",
             "body": {
                 "type": "box",
                 "layout": "vertical",
