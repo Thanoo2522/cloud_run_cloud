@@ -119,11 +119,6 @@ def calc_costrider(price_total: float) -> float:
         print("calc_costrider error:", e)
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
-import json
-import requests
-import traceback
-from datetime import datetime
-from flask import Flask, request
 
 # ===============================================================
 # 1. ฟังก์ชันดึงหมวดหมู่สินค้าจาก FIRESTORE
@@ -167,11 +162,13 @@ def get_line_config(ofm):
         return None
 
 # ===============================================================
+# 3. WEBHOOK (บันทึกข้อมูล + บันทึกหมวดสินค้า + ตอบกลับ)
 # ===============================================================
-# 1. ฟังก์ชันสร้าง FLEX MESSAGE (สร้างปุ่มจาก List หมวดหมู่)
+ # ===============================================================
+# 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
 def build_flex_category(items):
-    # สร้างปุ่มกด (Buttons) จากรายชื่อหมวดหมู่ที่ดึงมา
+    # สร้างปุ่มกดจาก List หมวดหมู่
     buttons = []
     for item in items:
         buttons.append({
@@ -180,12 +177,11 @@ def build_flex_category(items):
             "height": "sm",
             "action": {
                 "type": "message",
-                "label": item,
-                "text": f"mode|{item}"
+                "label": item,           # ข้อความที่แสดงบนปุ่ม
+                "text": f"mode|{item}"  # ข้อความที่จะถูกส่งเมื่อกดปุ่ม
             }
         })
 
-    # โครงสร้าง Flex Message แบบ Bubble
     return {
         "type": "flex",
         "altText": "กรุณาเลือกหมวดหมู่สินค้า",
@@ -203,17 +199,9 @@ def build_flex_category(items):
                         "color": "#1DB446"
                     },
                     {
-                        "type": "text",
-                        "text": "กรุณาเลือกหมวดหมู่ที่ต้องการดูรายการสินค้า",
-                        "size": "xs",
-                        "color": "#aaaaaa",
-                        "margin": "sm"
-                    },
-                    {
                         "type": "box",
-                        "layout": "horizontal",
+                        "layout": "vertical", # ใช้ vertical เพื่อให้ปุ่มเรียงลงมาตามลำดับ
                         "contents": buttons,
-                        "wrap": True,
                         "spacing": "sm",
                         "margin": "lg"
                     }
@@ -223,7 +211,7 @@ def build_flex_category(items):
     }
 
 # ===============================================================
-# 2. WEBHOOK (ดึงข้อมูล -> บันทึก -> ส่ง Flex Message)
+# 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
 # ===============================================================
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -236,7 +224,6 @@ def webhook():
             if event.get("type") == "message" and event["message"]["type"] == "text":
                 user_message = event["message"]["text"]
                 parts = user_message.split("|", 1)
-
                 if len(parts) < 2: continue
 
                 ofm = parts[0].strip()
@@ -244,15 +231,15 @@ def webhook():
                 user_id = event["source"].get("userId")
                 reply_token = event.get("replyToken")
 
-                # --- 1. ดึง Config (Token) ---
+                # 1. ดึง config
                 config = get_line_config(ofm)
                 if not config: continue
-                token = config["access_token"]
+                CHANNEL_ACCESS_TOKEN = config["access_token"]
 
-                # --- 2. ดึงหมวดสินค้าจาก Firestore ---
+                # 2. ดึงหมวดสินค้า
                 items = get_mod_product_direct(ofm)
 
-                # --- 3. บันทึกข้อมูลลง Firestore (channel) ---
+                # 3. บันทึก Firestore
                 doc_ref = db.collection(ofm).document(ofm).collection("LineOA").document("channel")
                 doc_ref.set({
                     "last_message": message,
@@ -261,41 +248,48 @@ def webhook():
                     "mod_products": items 
                 }, merge=True)
 
-                # --- 4. เตรียมข้อความตอบกลับ ---
+                # 4. ส่งข้อความตอบกลับ LINE (เพิ่ม Flex เข้าไปใน List messages)
                 headers = {
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {token}"
+                    "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
                 }
 
-                messages = []
-                # ข้อความแรก: ยืนยันการบันทึก
-                messages.append({
+                # เตรียมรายการข้อความ (ส่งพร้อมกัน 2 อัน)
+                messages_to_send = []
+                
+                # ข้อความแรก: ตัวอักษรยืนยัน
+                reply_text = f"OFM: {ofm} บันทึกแล้วนะ"
+                if items:
+                    reply_text += f"\nพบ {len(items)} หมวดหมู่สินค้า"
+                
+                messages_to_send.append({
                     "type": "text",
-                    "text": f"✅ OFM: {ofm} บันทึกแล้วนะ\nพบ {len(items)} หมวดหมู่สินค้า"
+                    "text": reply_text
                 })
 
-                # ข้อความที่สอง: Flex Message (สร้างจาก items)
+                # ข้อความที่สอง: Flex Message (ถ้ามีข้อมูลหมวดหมู่)
                 if items:
                     flex_payload = build_flex_category(items)
-                    messages.append(flex_payload)
+                    messages_to_send.append(flex_payload)
 
-                # --- 5. ส่ง Reply ---
                 payload = {
                     "replyToken": reply_token,
-                    "messages": messages
+                    "messages": messages_to_send
                 }
 
                 res = requests.post(
-                    "https://line.me",
+                    "https://api.line.me/v2/bot/message/reply",
                     headers=headers,
                     json=payload
                 )
-                print(f"📤 Reply Status: {res.status_code}")
+                print(f"📤 ผลการตอบกลับ: {res.status_code}")
+                if res.status_code != 200:
+                    print(f"❌ Error Detail: {res.text}")
 
         return "OK", 200
 
     except Exception as e:
-        print("❌ ERROR:", str(e))
+        print("ERROR:", str(e))
         traceback.print_exc()
         return "ERROR", 500
 
