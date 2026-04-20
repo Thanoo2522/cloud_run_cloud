@@ -223,66 +223,60 @@ def webhook():
         for event in events:
             if event.get("type") == "message" and event["message"]["type"] == "text":
                 user_message = event["message"]["text"]
+                
+                # 🔥 แยก ofm | message
                 parts = user_message.split("|", 1)
-                if len(parts) < 2: continue
+                if len(parts) < 2: 
+                    continue
 
                 ofm = parts[0].strip()
                 message = parts[1].strip()
-                user_id = event["source"].get("userId")
                 reply_token = event.get("replyToken")
 
-                # 1. ดึง config
+                # 1. ดึง config เพื่อเอา Access Token
                 config = get_line_config(ofm)
-                if not config: continue
+                if not config: 
+                    continue
+                
                 CHANNEL_ACCESS_TOKEN = config["access_token"]
 
-                # 2. ดึงหมวดสินค้า
+                # 2. ดึงข้อมูลหมวดสินค้าจาก Firestore
                 items = get_mod_product_direct(ofm)
 
-                # 3. บันทึก Firestore
-                doc_ref = db.collection(ofm).document(ofm).collection("LineOA").document("channel")
-                doc_ref.set({
-                    "last_message": message,
-                    "last_user_id": user_id,
-                    "last_timestamp": datetime.utcnow().isoformat(),
-                    "mod_products": items 
-                }, merge=True)
-
-                # 4. ส่งข้อความตอบกลับ LINE (เพิ่ม Flex เข้าไปใน List messages)
+                # 3. เตรียม Header สำหรับส่ง LINE
                 headers = {
                     "Content-Type": "application/json",
                     "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
                 }
 
-                # เตรียมรายการข้อความ (ส่งพร้อมกัน 2 อัน)
+                # 4. ตรวจสอบว่ามีหมวดหมู่สินค้าหรือไม่ และสร้าง Payload
                 messages_to_send = []
                 
-                # ข้อความแรก: ตัวอักษรยืนยัน
-                reply_text = f"OFM: {ofm} บันทึกแล้วนะ"
                 if items:
-                    reply_text += f"\nพบ {len(items)} หมวดหมู่สินค้า"
-                
-                messages_to_send.append({
-                    "type": "text",
-                    "text": reply_text
-                })
-
-                # ข้อความที่สอง: Flex Message (ถ้ามีข้อมูลหมวดหมู่)
-                if items:
+                    # สร้าง Flex Message จากรายการสินค้า
                     flex_payload = build_flex_category(items)
                     messages_to_send.append(flex_payload)
+                else:
+                    # กรณีไม่พบสินค้า ส่งข้อความแจ้งเตือนปกติ
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": f"📍 {ofm}: ไม่พบข้อมูลหมวดหมู่สินค้าในระบบ"
+                    })
 
+                # 5. ประกอบร่าง Payload สำหรับส่ง Reply
                 payload = {
                     "replyToken": reply_token,
                     "messages": messages_to_send
                 }
 
+                # 6. ส่งข้อมูลกลับไปที่ LINE
                 res = requests.post(
                     "https://api.line.me/v2/bot/message/reply",
                     headers=headers,
                     json=payload
                 )
-                print(f"📤 ผลการตอบกลับ: {res.status_code}")
+                
+                print(f"📤 ผลการตอบกลับ (OFM: {ofm}): {res.status_code}")
                 if res.status_code != 200:
                     print(f"❌ Error Detail: {res.text}")
 
@@ -292,6 +286,7 @@ def webhook():
         print("ERROR:", str(e))
         traceback.print_exc()
         return "ERROR", 500
+
 
 
 #------------------------------------------------------------------------------
