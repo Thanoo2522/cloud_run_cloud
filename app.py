@@ -121,12 +121,7 @@ def calc_costrider(price_total: float) -> float:
 #--------------------------- ใช้ใน line OA--------------------------------------
 
 #=============================================================================
-import json
-import requests
-import traceback
-from datetime import datetime
-from flask import Flask, request, abort
-
+ 
 # ===============================================================
 # 1. ฟังก์ชันดึง CONFIG LINE ตามชื่อร้าน (OFM)
 # ===============================================================
@@ -157,68 +152,20 @@ def get_line_config(ofm):
 # ===============================================================
 def get_mod_product_direct(ofm):
     try:
-        # Path: /{ofm}/{ofm}/modproduct (ดึง Document ID ใต้ Collection นี้)
+        # Path: /{ofm}/{ofm}/modproduct
         docs = db.collection(ofm) \
                  .document(ofm) \
                  .collection("modproduct") \
                  .stream()
 
-        items = [doc.id for doc in docs] # ดึงชื่อ Document ID มาเป็นชื่อหมวด
-        print(f"📦 พบ {len(items)} หมวดหมู่ใน {ofm}")
+        items = [doc.id for doc in docs] # ดึง Document ID มาเป็นชื่อหมวด
         return items
     except Exception as e:
         print(f"❌ ERROR get_mod_product_direct: {str(e)}")
         return []
 
 # ===============================================================
-# 3. ฟังก์ชันสร้าง FLEX MESSAGE (ปุ่มเลือกหมวด)
-# ===============================================================
-def build_flex(items):
-    # สร้างปุ่มจากรายชื่อหมวดหมู่ (จำกัด 10 ปุ่ม)
-    buttons = []
-    for item in items[:10]:
-        buttons.append({
-            "type": "button",
-            "style": "secondary",
-            "height": "sm",
-            "action": {
-                "type": "message",
-                "label": item,
-                "text": f"mode|{item}"
-            }
-        })
-
-    return {
-        "type": "flex",
-        "altText": "เลือกหมวดสินค้า",
-        "contents": {
-            "type": "bubble",
-            "body": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": "📦 เลือกหมวดสินค้า",
-                        "weight": "bold",
-                        "size": "lg",
-                        "color": "#1DB446"
-                    },
-                    {
-                        "type": "box",
-                        "layout": "horizontal",
-                        "contents": buttons,
-                        "wrap": True,
-                        "spacing": "sm",
-                        "margin": "md"
-                    }
-                ]
-            }
-        }
-    }
-
-# ===============================================================
-# 4. WEBHOOK (บันทึกข้อมูล + ดึงหมวดหมู่ + ตอบกลับ Flex)
+# 3. WEBHOOK (บันทึกข้อมูล + ดึงข้อมูลหมวดหมู่ + ตอบกลับเป็นข้อความ)
 # ===============================================================
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -226,7 +173,7 @@ def webhook():
         # รับข้อมูลจาก LINE
         body = request.get_data()
         body_json = json.loads(body)
-        print("📩 LINE EVENT:", json.dumps(body_json, indent=2))
+        print("📩 LINE EVENT RECEIVED")
 
         events = body_json.get("events", [])
 
@@ -247,70 +194,66 @@ def webhook():
 
                 # --- ขั้นตอนที่ 1: ดึง config จาก Firebase ---
                 config = get_line_config(ofm)
-                if not config:
-                    print(f"⚠️ ข้ามการทำงาน: ไม่มี config สำหรับ {ofm}")
+                if not config or not config.get("access_token"):
+                    print(f"⚠️ ไม่มี Token สำหรับ: {ofm}")
                     continue
 
-                CHANNEL_ACCESS_TOKEN = config["access_token"]
+                token = config["access_token"]
 
                 # --- ขั้นตอนที่ 2: บันทึกข้อมูลลง Firestore ---
-                doc_ref = db.collection(ofm) \
-                            .document(ofm) \
-                            .collection("LineOA") \
-                            .document("channel")
-
-                doc_ref.set({
+                print(f"💾 กำลังบันทึก Log สำหรับ: {ofm}")
+                db.collection(ofm).document(ofm).collection("LineOA").document("channel").set({
                     "last_message": message,
                     "last_user_id": user_id,
                     "last_timestamp": datetime.utcnow().isoformat()
                 }, merge=True)
 
-                # --- ขั้นตอนที่ 3: ดึงหมวดหมู่สินค้าโดยตรง ---
+                # --- ขั้นตอนที่ 3: ดึงหมวดหมู่สินค้าจาก Firestore ---
+                print(f"🔍 กำลังดึงหมวดหมู่สินค้า...")
                 items = get_mod_product_direct(ofm)
+                print(f"📦 ดึงสำเร็จ: {items}")
 
-                # --- ขั้นตอนที่ 4: เตรียมข้อความตอบกลับ ---
+                # --- ขั้นตอนที่ 4: เตรียมข้อความตอบกลับ (Text Only) ---
                 headers = {
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
+                    "Authorization": f"Bearer {token}"
                 }
 
-                messages = []
-                # 1. ข้อความยืนยันการบันทึก
-                messages.append({
-                    "type": "text",
-                    "text": f"✅ OFM: {ofm} บันทึกแล้วนะ"
-                })
-
-                # 2. ข้อความ Flex Message (ถ้ามีหมวดหมู่)
+                # สร้างข้อความสรุปรายการหมวดหมู่
                 if items:
-                    flex_msg = build_flex(items)
-                    messages.append(flex_msg)
+                    item_list_text = "\n- ".join(items)
+                    reply_text = f"✅ บันทึกแล้วนะ\n\n📦 หมวดสินค้าที่พบ:\n- {item_list_text}"
                 else:
-                    messages.append({
-                        "type": "text",
-                        "text": "🔎 ไม่พบข้อมูลหมวดสินค้าในระบบ"
-                    })
+                    reply_text = f"✅ บันทึกแล้วนะ\n⚠️ แต่ไม่พบข้อมูลใน modproduct"
 
-                # --- ขั้นตอนที่ 5: ส่ง Reply กลับไปที่ LINE ---
                 payload = {
                     "replyToken": reply_token,
-                    "messages": messages
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": reply_text
+                        }
+                    ]
                 }
 
+                # --- ขั้นตอนที่ 5: ส่ง Reply กลับไปที่ LINE ---
                 res = requests.post(
                     "https://line.me",
                     headers=headers,
                     json=payload,
                     timeout=5
                 )
-                print(f"📤 ผลการตอบกลับ ({ofm}): {res.status_code}")
+                print(f"📤 LINE Reply Status: {res.status_code}")
+                if res.status_code != 200:
+                    print(f"⚠️ LINE Error: {res.text}")
 
         return "OK", 200
 
     except Exception as e:
-        print("❌ ERROR:", str(e))
+        print("❌ WEBHOOK ERROR:")
         traceback.print_exc()
         return "ERROR", 500
+
 
 #------------------------------------------------------------------------------
 #=================================end line OA ====================================
