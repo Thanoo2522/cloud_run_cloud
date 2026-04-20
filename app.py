@@ -315,61 +315,66 @@ def get_products(ofm, shopname, modename):
 def build_flex_products(products):
     bubbles = []
 
-    for item in products:
+    # แบ่งสินค้า 4 รายการ / bubble
+    for i in range(0, len(products), 4):
+        chunk = products[i:i+4]
+
+        contents = []
+
+        for p in chunk:
+            contents.append({
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "sm",
+                "contents": [
+                    {
+                        "type": "image",
+                        "url": p.get("image_url", ""),
+                        "size": "xs",
+                        "aspectMode": "cover",
+                        "aspectRatio": "1:1"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": [
+                            {
+                                "type": "text",
+                                "text": p.get("productname", "-"),
+                                "weight": "bold",
+                                "size": "sm",
+                                "wrap": True
+                            },
+                            {
+                                "type": "text",
+                                "text": p.get("dataproduct", "-"),
+                                "size": "xs",
+                                "color": "#999999",
+                                "wrap": True
+                            },
+                            {
+                                "type": "text",
+                                "text": f"฿ {p.get('priceproduct', '-')}",
+                                "size": "sm",
+                                "color": "#FF0000"
+                            }
+                        ]
+                    }
+                ]
+            })
+
         bubbles.append({
             "type": "bubble",
-            "size": "kilo",
-            "hero": {
-                "type": "image",
-                "url": item["image_url"],
-                "size": "full",
-                "aspectRatio": "20:13",
-                "aspectMode": "cover"
-            },
+            "size": "micro",
             "body": {
                 "type": "box",
                 "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "text",
-                        "text": item["productname"],
-                        "weight": "bold",
-                        "size": "md",
-                        "wrap": True
-                    },
-                    {
-                        "type": "text",
-                        "text": item["dataproduct"],
-                        "size": "sm",
-                        "color": "#666666",
-                        "wrap": True
-                    },
-                    {
-                        "type": "text",
-                        "text": f"💰 {item['priceproduct']} บาท",
-                        "weight": "bold",
-                        "size": "md",
-                        "color": "#FF0000"
-                    }
-                ]
-            },
-            "footer": {
-                "type": "box",
-                "layout": "vertical",
-                "contents": [
-                    {
-                        "type": "button",
-                        "style": "primary",
-                        "action": {
-                            "type": "message",
-                            "label": "สั่งซื้อ",
-                            "text": f"order|{item['productname']}"
-                        }
-                    }
-                ]
+                "spacing": "md",
+                "contents": contents
             }
         })
 
+        # จำกัดไม่เกิน 10 bubbles
         if len(bubbles) >= 10:
             break
 
