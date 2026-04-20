@@ -327,6 +327,14 @@ def build_flex_products(products):
                 "layout": "horizontal",
                 "spacing": "sm",
                 "contents": [
+                    # 🔥 ส่วนหัวบนสุดของ bubble
+                       {
+                       "type": "text",
+                        "text": "เลือกสินค้า",
+                         "weight": "bold",
+                        "size": "md",
+                        "color": "#1DB446"
+            },
                     {
                         "type": "image",
                         "url": p.get("image_url", ""),
