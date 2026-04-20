@@ -161,59 +161,71 @@ def get_line_config(ofm):
         print("ERROR get_line_config:", str(e))
         return None
 
-# ===============================================================
-# 3. WEBHOOK (บันทึกข้อมูล + บันทึกหมวดสินค้า + ตอบกลับ)
-# ===============================================================
+
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
-#def build_flex_category(items):
 def build_flex_category(items):
     bubbles = []
     
-    # วนลูปสร้าง Bubble สำหรับแต่ละหมวดหมู่ (1 Bubble ต่อ 1 หมวดหมู่ เพื่อให้สไลด์ได้)
-    for item in items:
+    # แบ่งกลุ่มหมวดหมู่ทีละ 4 รายการต่อ 1 Bubble (การ์ด 1 ใบ)
+    # ถ้ามี 40 รายการ จะได้ 10 Bubble พอดีตามขีดจำกัดของ LINE
+    for i in range(0, len(items), 4):
+        chunk = items[i:i+4]
+        buttons = []
+        
+        for item in chunk:
+            buttons.append({
+                "type": "button",
+                "style": "secondary",
+                "height": "sm",
+                "margin": "xs",
+                "action": {
+                    "type": "message",
+                    "label": item,           # ชื่อหมวดหมู่ที่แสดงบนปุ่ม
+                    "text": f"mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
+                }
+            })
+            
         bubbles.append({
             "type": "bubble",
-            "size": "micro", # ใช้ขนาดจิ๋วเพื่อให้เห็นหลายอันในหน้าจอเดียว
+            "size": "kilo", # ขนาดกำลังดีสำหรับการสไลด์แนวนอน
             "body": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
                     {
                         "type": "text",
-                        "text": item,
+                        "text": "📦 เลือกหมวดหมู่",
                         "weight": "bold",
-                        "size": "sm",
-                        "align": "center",
-                        "wrap": True
+                        "size": "md",
+                        "color": "#1DB446"
                     },
                     {
-                        "type": "button",
-                        "style": "primary",
-                        "color": "#1DB446",
-                        "height": "sm",
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": buttons,
                         "margin": "md",
-                        "action": {
-                            "type": "message",
-                            "label": "เลือก",
-                            "text": f"mode|{item}"
-                        }
+                        "spacing": "sm"
                     }
                 ],
-                "paddingAll": "10px"
+                "paddingAll": "20px"
             }
         })
+        
+        # ป้องกัน Error หากข้อมูลในอนาคตเกิน 40 (LINE รับได้สูงสุด 10-12 bubbles)
+        if len(bubbles) >= 10:
+            break
 
-    # ส่งกลับเป็นโครงสร้างแบบ Carousel
     return {
         "type": "flex",
-        "altText": "เลือกหมวดหมู่สินค้า",
+        "altText": "กรุณาเลือกหมวดหมู่สินค้า",
         "contents": {
-            "type": "carousel", # 🔥 เปลี่ยนจาก bubble เป็น carousel
+            "type": "carousel",
             "contents": bubbles
         }
     }
+
 
 
 # ===============================================================
