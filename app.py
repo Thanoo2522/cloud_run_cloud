@@ -299,14 +299,13 @@ def webhook():
             if event.get("type") == "message" and event["message"]["type"] == "text":
                 user_message = event["message"]["text"]
                 
-                parts = user_message.split("|", 1)
-                if len(parts) < 2: 
-                    continue
+                parts = user_message.split("|")
+                 
 
                 ofm_name = parts[0].strip()
-                command = parts[1].strip()
-                modename= parts[2].strip()
-                shopname = parts[3].strip()
+                command = parts[1].strip() if len(parts) > 1 else ""
+                modename = parts[2].strip() if len(parts) > 2 else ""
+                shopname = parts[3].strip() if len(parts) > 3 else ""
                 reply_token = event.get("replyToken")
 
                 # ================= CASE เดิม =================
