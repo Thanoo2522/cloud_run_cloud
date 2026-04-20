@@ -400,7 +400,7 @@ def webhook():
 
                     if res.status_code != 200:
                         print(f"❌ Error Detail: {res.text}")
-                # ================= END =================
+                #================ END ================
 
         return "OK", 200
 
