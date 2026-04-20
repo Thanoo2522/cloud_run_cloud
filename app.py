@@ -321,24 +321,18 @@ def build_flex_products(products):
 
         contents = []
 
-        for p in chunk:
+        # 🔥 loop + ใช้ idx สำหรับ separator
+        for idx, p in enumerate(chunk):
+
             contents.append({
                 "type": "box",
                 "layout": "horizontal",
                 "spacing": "sm",
                 "contents": [
-                    # 🔥 ส่วนหัวบนสุดของ bubble
-                       {
-                       "type": "text",
-                        "text": "เลือกสินค้า",
-                         "weight": "bold",
-                        "size": "md",
-                        "color": "#1DB446"
-            },
                     {
                         "type": "image",
                         "url": p.get("image_url", ""),
-                        "size": "xs",
+                        "size": "md",
                         "aspectMode": "cover",
                         "aspectRatio": "1:1"
                     },
@@ -367,7 +361,6 @@ def build_flex_products(products):
                                 "size": "sm",
                                 "color": "#FF0000"
                             },
-                            # 🔥 ปุ่มสั่งซื้อ
                             {
                                 "type": "button",
                                 "style": "primary",
@@ -384,6 +377,14 @@ def build_flex_products(products):
                 ]
             })
 
+            # 🔥 เส้นคั่นระหว่างสินค้า
+            if idx < len(chunk) - 1:
+                contents.append({
+                    "type": "separator",
+                    "margin": "md"
+                })
+
+        # 🔥 bubble (ใส่ header ตรงนี้ ไม่ใช่ใน row)
         bubbles.append({
             "type": "bubble",
             "size": "giga",
@@ -391,7 +392,23 @@ def build_flex_products(products):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "md",
-                "contents": contents
+                "contents": [
+                    # ✅ หัวบนสุด
+                    {
+                        "type": "text",
+                        "text": "เลือกสินค้า",
+                        "weight": "bold",
+                        "size": "md",
+                        "color": "#1DB446"
+                    },
+                    {
+                        "type": "separator",
+                        "margin": "sm"
+                    },
+
+                    # ✅ รายการสินค้า
+                    *contents
+                ]
             }
         })
 
