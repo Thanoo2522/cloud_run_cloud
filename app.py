@@ -337,6 +337,7 @@ def build_flex_products(products):
                     {
                         "type": "box",
                         "layout": "vertical",
+                        "spacing": "xs",
                         "contents": [
                             {
                                 "type": "text",
@@ -357,6 +358,18 @@ def build_flex_products(products):
                                 "text": f"฿ {p.get('priceproduct', '-')}",
                                 "size": "sm",
                                 "color": "#FF0000"
+                            },
+                            # 🔥 ปุ่มสั่งซื้อ
+                            {
+                                "type": "button",
+                                "style": "primary",
+                                "height": "sm",
+                                "margin": "sm",
+                                "action": {
+                                    "type": "message",
+                                    "label": "สั่งซื้อ",
+                                    "text": f"order|{p.get('productname', '-')}"
+                                }
                             }
                         ]
                     }
@@ -365,7 +378,7 @@ def build_flex_products(products):
 
         bubbles.append({
             "type": "bubble",
-            "size": "kilo",
+            "size": "giga",
             "body": {
                 "type": "box",
                 "layout": "vertical",
