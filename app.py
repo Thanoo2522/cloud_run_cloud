@@ -121,6 +121,24 @@ def calc_costrider(price_total: float) -> float:
 #--------------------------- ใช้ใน line OA--------------------------------------
 
 #=============================================================================
+def call_app_script(ofm):
+    try:
+        url = "https://script.google.com/macros/s/AKfycbxJ54NEbiEsB5fXFe-Z2yCCoetX1s89tPJxtHCWfJvUmTLKWE-W61FT4AZEA7P1XYET/exec"
+
+        res = requests.post(url, json={
+            "ofm": ofm
+        }, timeout=5)
+
+        if res.status_code == 200:
+            return res.json()   # 🔥 ต้องให้ Apps Script return JSON
+        else:
+            print("❌ Apps Script error:", res.text)
+            return None
+
+    except Exception as e:
+        print("ERROR call_app_script:", str(e))
+        return None
+    
 def get_line_config(ofm):
     try:
         doc_ref = db.collection(ofm) \
@@ -180,7 +198,17 @@ def webhook():
                         continue
 
                     CHANNEL_ACCESS_TOKEN = config["access_token"]
-                    CHANNEL_SECRET = config["secret"]
+
+                    # 🔥 เรียก Apps Script
+                    appscript_data = call_app_script(ofm)
+
+                    # 👉 ตัวอย่าง: Apps Script ส่งกลับ list ของ mode
+                    mode_text = ""
+                    if appscript_data and "items" in appscript_data:
+                        mode_list = [i["name"] for i in appscript_data["items"]]
+                        mode_text = " | ".join(mode_list[:5])
+                    else:
+                        mode_text = "ไม่มีข้อมูลหมวด"
 
                     # 🔥 Firestore
                     doc_ref = db.collection(ofm) \
@@ -207,7 +235,7 @@ def webhook():
                         "messages": [
                             {
                                 "type": "text",
-                                "text": f"OFM: {ofm} บันทึกแล้วนะ"
+                                "text": f"OFM: {ofm}\nหมวด: {mode_text}"
                             }
                         ]
                     }
