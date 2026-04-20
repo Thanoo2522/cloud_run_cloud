@@ -226,6 +226,63 @@ def build_flex_category(items):
         }
     }
 
+# ===============================================================
+# 3. ฟังก์ชันดึง "Partner" (Logic เดียวกับ get_mod_product_direct)
+# ===============================================================
+def get_partners_direct(ofm):
+    try:
+        # Path: /{ofm}/{ofm}/partner
+        # ดึงรายชื่อ Document ID ทั้งหมดที่อยู่ใน Collection "partner"
+        docs = db.collection(ofm) \
+                 .document(ofm) \
+                 .collection("partner") \
+                 .stream()
+
+        items = [doc.id for doc in docs] # ดึง Document ID มาเป็นชื่อร้าน
+        print(f"🤝 พบ {len(items)} Partner ใน {ofm}")
+        return items
+    except Exception as e:
+        print(f"❌ ERROR get_partners_direct: {str(e)}")
+        return []
+
+# ===============================================================
+# 4. ฟังก์ชันสร้าง Flex Partner (รองรับ 40 รายการ)
+# ===============================================================
+def build_flex_partners(ofm_name, partners):
+    bubbles = []
+    # แบ่งกลุ่ม Partner ทีละ 4 รายการต่อ 1 Bubble
+    for i in range(0, len(partners), 4):
+        chunk = partners[i:i+4]
+        buttons = []
+        for p_name in chunk:
+            buttons.append({
+                "type": "button",
+                "style": "primary",
+                "color": "#008CFF",
+                "height": "sm",
+                "margin": "xs",
+                "action": {
+                    "type": "message",
+                    "label": p_name,
+                    "text": f"partner|{ofm_name}|{p_name}" 
+                }
+            })
+        bubbles.append({
+            "type": "bubble",
+            "size": "kilo",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {"type": "text", "text": "🤝 รายชื่อร้านค้า", "weight": "bold", "size": "md", "color": "#008CFF"},
+                    {"type": "box", "layout": "vertical", "contents": buttons, "margin": "md", "spacing": "sm"}
+                ],
+                "paddingAll": "20px"
+            }
+        })
+        if len(bubbles) >= 10: break
+    return {"type": "flex", "altText": "รายชื่อร้านค้า", "contents": {"type": "carousel", "contents": bubbles}}
+
 
 
 # ===============================================================
@@ -242,22 +299,17 @@ def webhook():
             if event.get("type") == "message" and event["message"]["type"] == "text":
                 user_message = event["message"]["text"]
                 
-                # 🔥 แยกข้อมูลด้วยเครื่องหมาย |
-                # รูปแบบที่คาดหวัง: "ชื่อร้าน|หมวดสินค้า"
                 parts = user_message.split("|", 1)
                 if len(parts) < 2: 
                     continue
 
-                ofm_name = parts[0].strip()   # ชื่อร้าน (ใช้ดึง Config/หมวดสินค้า)
-                command = parts[1].strip()    # คำสั่ง (เช่น 'หมวดสินค้า')
+                ofm_name = parts[0].strip()
+                command = parts[1].strip()
                 reply_token = event.get("replyToken")
 
-                # 🚀 เงื่อนไข: ถ้าข้อความหลังเครื่องหมาย | คือ 'หมวดสินค้า' 
-                # หรือจะให้ทำงานกับทุกคำสั่งที่เป็นชื่อร้าน|... ก็ได้
-                  # ================= เริ่มขอบเขตของเงื่อนไข =================
+                # ================= CASE เดิม =================
                 if command == "หมวดสินค้า" or command == "test":
                     
-                    # 1. ดึง Config ของร้านนั้นๆ โดยเฉพาะ
                     config = get_line_config(ofm_name)
                     if not config: 
                         print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
@@ -265,20 +317,16 @@ def webhook():
                     
                     access_token = config["access_token"]
 
-                    # 2. ดึงข้อมูลหมวดสินค้าของร้านนั้นๆ โดยเฉพาะ
                     items = get_mod_product_direct(ofm_name)
 
-                    # 3. เตรียม Header สำหรับ LINE OA ของร้านนั้น
                     headers = {
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {access_token}"
                     }
 
-                    # 4. สร้างข้อความตอบกลับ
                     messages_to_send = []
                     
                     if items:
-                        # สร้าง Flex Carousel (รองรับสูงสุด 40 หมวดหมู่)
                         flex_payload = build_flex_category(items)
                         messages_to_send.append(flex_payload)
                     else:
@@ -287,7 +335,6 @@ def webhook():
                             "text": f"📍 {ofm_name}: ไม่พบข้อมูลหมวดหมู่สินค้า"
                         })
 
-                    # 5. ส่ง Reply กลับไปยัง LINE OA ที่เรียกมา
                     payload = {
                         "replyToken": reply_token,
                         "messages": messages_to_send
@@ -300,9 +347,59 @@ def webhook():
                     )
                     
                     print(f"📤 ผลการตอบกลับร้าน [{ofm_name}]: {res.status_code}")
-                     # ================= จบขอบเขตของเงื่อนไข =================
+
                     if res.status_code != 200:
                         print(f"❌ Error Detail: {res.text}")
+
+                # ================= 🔵 CASE ใหม่: mode|หมวด =================
+                elif ofm_name == "mode":
+
+                    category_name = command   # เช่น "ไก่ทอด"
+
+                    # ⚠️ ใช้ร้านหลัก (ตามโครงสร้างคุณ)
+                    real_ofm = "เชียงกลมออนไลน์"
+
+                    config = get_line_config(real_ofm)
+                    if not config:
+                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {real_ofm}")
+                        continue
+
+                    access_token = config["access_token"]
+
+                    partners = get_partners_direct(real_ofm)
+
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {access_token}"
+                    }
+
+                    messages_to_send = []
+
+                    if partners:
+                        flex_payload = build_flex_partners(category_name, partners)
+                        messages_to_send.append(flex_payload)
+                    else:
+                        messages_to_send.append({
+                            "type": "text",
+                            "text": f"❌ ไม่พบร้านค้าในหมวด {category_name}"
+                        })
+
+                    payload = {
+                        "replyToken": reply_token,
+                        "messages": messages_to_send
+                    }
+
+                    res = requests.post(
+                        "https://api.line.me/v2/bot/message/reply",
+                        headers=headers,
+                        json=payload
+                    )
+
+                    print(f"📤 mode -> partner [{category_name}]: {res.status_code}")
+
+                    if res.status_code != 200:
+                        print(f"❌ Error Detail: {res.text}")
+                # ================= END =================
 
         return "OK", 200
 
@@ -310,7 +407,6 @@ def webhook():
         print("❌ WEBHOOK ERROR:", str(e))
         traceback.print_exc()
         return "ERROR", 500
-
 
 
 
