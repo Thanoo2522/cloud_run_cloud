@@ -119,8 +119,6 @@ def calc_costrider(price_total: float) -> float:
         print("calc_costrider error:", e)
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
-
-
 # ================= 1. ดึง CONFIG LINE ตาม OFM =================
 def get_line_config(ofm):
     try:
@@ -219,7 +217,8 @@ def webhook():
             user_message = event["message"]["text"]
             # แยกคำสั่ง format: ofm|message (เช่น เชียงกลมออนไลน์|test)
             parts = user_message.split("|", 1)
-            if len(parts) < 2: continue
+            if len(parts) < 2: 
+                continue
 
             ofm = parts[0].strip()
             message = parts[1].strip()
@@ -233,10 +232,10 @@ def webhook():
             
             token = config["access_token"]
 
-            # 🛠 ขั้นตอนที่ 2: ดึงข้อมูลหมวดหมู่สินค้าโดยตรง
+            # 🛠 ขั้นตอนที่ 2: ดึงข้อมูลหมวดหมู่สินค้าโดยตรงจาก Firestore
             items = get_mod_product_direct(ofm)
 
-            # 🛠 ขั้นตอนที่ 3: ตอบกลับ LINE
+            # 🛠 ขั้นตอนที่ 3: เตรียม Payload สำหรับตอบกลับ
             headers = {
                 "Content-Type": "application/json",
                 "Authorization": f"Bearer {token}"
@@ -254,15 +253,14 @@ def webhook():
                     "messages": [{"type": "text", "text": "❌ ไม่พบข้อมูลหมวดสินค้าในระบบ"}]
                 }
 
-                        # แก้ไข URL ให้ถูกต้อง
+            # 🛠 ขั้นตอนที่ 4: ส่งข้อมูลกลับไปยัง LINE (แก้ไข URL แล้ว)
             res = requests.post(
-                "https://line.me", # 🔥 เปลี่ยนจาก https://line.me
+                "https://line.me", 
                 headers=headers,
                 json=payload,
                 timeout=5
             )
-            print(f"📤 ผลการตอบกลับ: {res.status_code}")
-
+            print(f"📤 ผลการตอบกลับ (OFM: {ofm}): {res.status_code}")
 
         return "OK", 200
 
@@ -270,6 +268,8 @@ def webhook():
         print("❌ Webhook Error:")
         traceback.print_exc()
         return "ERROR", 500
+
+
 
 
 #------------------------------------------------------------------------------
