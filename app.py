@@ -120,24 +120,38 @@ def calc_costrider(price_total: float) -> float:
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
 
-import json
-import requests
-import traceback
-from datetime import datetime
-from flask import Flask, request
+# ===============================================================
+# 1. ฟังก์ชันดึงหมวดหมู่สินค้าจาก FIRESTORE
+# ===============================================================
+def get_mod_product_direct(ofm):
+    try:
+        # Path: /{ofm}/{ofm}/modproduct
+        docs = db.collection(ofm) \
+                 .document(ofm) \
+                 .collection("modproduct") \
+                 .stream()
 
-# หมายเหตุ: มั่นใจว่าคุณได้ทำการ initialize db = firestore.client() ไว้แล้วที่ส่วนหัวของไฟล์
+        items = [doc.id for doc in docs] # ดึง Document ID มาเป็นชื่อหมวด
+        return items
+    except Exception as e:
+        print(f"❌ ERROR get_mod_product_direct: {str(e)}")
+        return []
 
 # ===============================================================
-# 1. ฟังก์ชันดึง CONFIG (Token) ตามชื่อร้าน
+# 2. ฟังก์ชันดึง CONFIG (Token)
 # ===============================================================
 def get_line_config(ofm):
     try:
-        doc_ref = db.collection(ofm).document(ofm).collection("LineOA").document("channel")
+        doc_ref = db.collection(ofm) \
+                    .document(ofm) \
+                    .collection("LineOA") \
+                    .document("channel")
+
         doc = doc_ref.get()
         if not doc.exists:
             print(f"❌ ไม่พบ config ของ OFM: {ofm}")
             return None
+
         data = doc.to_dict()
         return {
             "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
@@ -147,68 +161,97 @@ def get_line_config(ofm):
         print("ERROR get_line_config:", str(e))
         return None
 
-# ===============================================================
-# 2. ฟังก์ชันดึง "หมวดหมู่สินค้า" (Category)
-# ===============================================================
-def get_mod_product_direct(ofm):
-    try:
-        docs = db.collection(ofm).document(ofm).collection("modproduct").stream()
-        return [doc.id for doc in docs]
-    except Exception as e:
-        return []
 
+ # ===============================================================
+# 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
-# 3. ฟังก์ชันดึง "รายชื่อร้านค้า" (Partner) ตามหมวดหมู่
-# ===============================================================
-def get_partners_direct(ofm, category):
-    try:
-        # ดึงจาก /{ofm}/{ofm}/partner โดยกรองฟิลด์ Category ให้ตรงกับที่เลือก
-        docs = db.collection(ofm).document(ofm).collection("partner") \
-                 .where("Category", "==", category).stream()
-        return [doc.id for doc in docs]
-    except Exception as e:
-        print(f"❌ ERROR get_partners: {str(e)}")
-        return []
-
-# ===============================================================
-# 4. ฟังก์ชันสร้าง Flex Category (สไลด์แนวนอน 4 ปุ่มต่อการ์ด)
-# ===============================================================
-def build_flex_category(ofm_name, items):
+def build_flex_category(items):
     bubbles = []
+    
+    # แบ่งกลุ่มหมวดหมู่ทีละ 4 รายการต่อ 1 Bubble (การ์ด 1 ใบ)
+    # ถ้ามี 40 รายการ จะได้ 10 Bubble พอดีตามขีดจำกัดของ LINE
     for i in range(0, len(items), 4):
         chunk = items[i:i+4]
         buttons = []
+        
         for item in chunk:
             buttons.append({
                 "type": "button",
                 "style": "secondary",
                 "height": "sm",
+                "margin": "xs",
                 "action": {
                     "type": "message",
-                    "label": item,
-                    "text": f"mode|{ofm_name}|{item}" # ส่งชื่อร้านและหมวดไปพร้อมกัน
+                    "label": item,           # ชื่อหมวดหมู่ที่แสดงบนปุ่ม
+                    "text": f"mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
                 }
             })
+            
         bubbles.append({
             "type": "bubble",
-            "size": "kilo",
+            "size": "kilo", # ขนาดกำลังดีสำหรับการสไลด์แนวนอน
             "body": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": "📦 เลือกหมวดหมู่", "weight": "bold", "size": "md", "color": "#1DB446"},
-                    {"type": "box", "layout": "vertical", "contents": buttons, "margin": "md", "spacing": "sm"}
-                ]
+                    {
+                        "type": "text",
+                        "text": "📦 เลือกหมวดหมู่",
+                        "weight": "bold",
+                        "size": "md",
+                        "color": "#1DB446"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "contents": buttons,
+                        "margin": "md",
+                        "spacing": "sm"
+                    }
+                ],
+                "paddingAll": "20px"
             }
         })
-        if len(bubbles) >= 10: break
-    return {"type": "flex", "altText": "เลือกหมวดหมู่", "contents": {"type": "carousel", "contents": bubbles}}
+        
+        # ป้องกัน Error หากข้อมูลในอนาคตเกิน 40 (LINE รับได้สูงสุด 10-12 bubbles)
+        if len(bubbles) >= 10:
+            break
+
+    return {
+        "type": "flex",
+        "altText": "กรุณาเลือกหมวดหมู่สินค้า",
+        "contents": {
+            "type": "carousel",
+            "contents": bubbles
+        }
+    }
+
 
 # ===============================================================
-# 5. ฟังก์ชันสร้าง Flex Partner (สไลด์แนวนอน 4 ปุ่มต่อการ์ด)
+# 3. ฟังก์ชันดึง "Partner" (Logic เดียวกับ get_mod_product_direct)
 # ===============================================================
-def build_flex_partners(ofm_name, category, partners):
+def get_partners_direct(ofm):
+    try:
+        # Path: /{ofm}/{ofm}/partner
+        # ดึงรายชื่อ Document ID ทั้งหมดที่อยู่ใน Collection "partner"
+        docs = db.collection(ofm) \
+                 .document(ofm) \
+                 .collection("partner") \
+                 .stream()
+
+        items = [doc.id for doc in docs] # ดึง Document ID มาเป็นชื่อร้าน
+        print(f"🤝 พบ {len(items)} Partner ใน {ofm}")
+        return items
+    except Exception as e:
+        print(f"❌ ERROR get_partners_direct: {str(e)}")
+        return []
+
+# ===============================================================
+# 4. ฟังก์ชันสร้าง Flex Partner (รองรับ 40 รายการ)
+# ===============================================================
+def build_flex_partners(ofm_name, partners):
     bubbles = []
+    # แบ่งกลุ่ม Partner ทีละ 4 รายการต่อ 1 Bubble
     for i in range(0, len(partners), 4):
         chunk = partners[i:i+4]
         buttons = []
@@ -218,6 +261,7 @@ def build_flex_partners(ofm_name, category, partners):
                 "style": "primary",
                 "color": "#008CFF",
                 "height": "sm",
+                "margin": "xs",
                 "action": {
                     "type": "message",
                     "label": p_name,
@@ -231,16 +275,17 @@ def build_flex_partners(ofm_name, category, partners):
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": f"📍 หมวด: {category}", "weight": "bold", "size": "md", "color": "#008CFF"},
+                    {"type": "text", "text": "🤝 รายชื่อร้านค้า", "weight": "bold", "size": "md", "color": "#008CFF"},
                     {"type": "box", "layout": "vertical", "contents": buttons, "margin": "md", "spacing": "sm"}
-                ]
+                ],
+                "paddingAll": "20px"
             }
         })
         if len(bubbles) >= 10: break
-    return {"type": "flex", "altText": f"รายชื่อในหมวด {category}", "contents": {"type": "carousel", "contents": bubbles}}
+    return {"type": "flex", "altText": "รายชื่อร้านค้า", "contents": {"type": "carousel", "contents": bubbles}}
 
 # ===============================================================
-# 6. WEBHOOK (ส่วนควบคุมหลัก)
+# 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
 # ===============================================================
 @app.route("/webhook", methods=["POST"])
 def webhook():
@@ -254,7 +299,7 @@ def webhook():
             user_message = event["message"]["text"]
             reply_token = event.get("replyToken")
 
-            # --- 🟢 กรณีที่ 1: คำสั่งหลัก "ชื่อร้าน|หมวดสินค้า" ---
+            # --- 🟢 กรณีที่ 1: "ชื่อร้าน|หมวดสินค้า" ---
             if "|" in user_message and not user_message.startswith("mode|") and not user_message.startswith("partner|"):
                 parts = user_message.split("|", 1)
                 ofm_name = parts[0].strip()
@@ -262,25 +307,28 @@ def webhook():
 
                 if command in ["หมวดสินค้า", "test"]:
                     config = get_line_config(ofm_name)
+                    if not config: continue
+                    
                     items = get_mod_product_direct(ofm_name)
-                    if config and items:
+                    if items:
                         flex = build_flex_category(ofm_name, items)
                         send_reply(reply_token, config["access_token"], [flex])
-                    elif config:
-                        send_reply(reply_token, config["access_token"], [{"type": "text", "text": f"📍 {ofm_name}: ไม่พบหมวดหมู่สินค้า"}])
+                    else:
+                        send_reply(reply_token, config["access_token"], [{"type": "text", "text": "❌ ไม่พบหมวดสินค้า"}])
 
-            # --- 🔵 กรณีที่ 2: กดเลือกหมวดหมู่ (mode|ชื่อร้าน|ชื่อหมวด) ---
+            # --- 🔵 กรณีที่ 2: เมื่อกดปุ่มหมวดหมู่ (mode|ชื่อร้าน|ชื่อหมวด) ---
             elif user_message.startswith("mode|"):
                 parts = user_message.split("|")
                 if len(parts) >= 3:
                     ofm_name, category = parts[1], parts[2]
                     config = get_line_config(ofm_name)
-                    partners = get_partners_direct(ofm_name, category)
+                    if not config: continue
                     
-                    if config and partners:
+                    partners = get_partners_direct(ofm_name, category)
+                    if partners:
                         flex = build_flex_partners(ofm_name, category, partners)
                         send_reply(reply_token, config["access_token"], [flex])
-                    elif config:
+                    else:
                         send_reply(reply_token, config["access_token"], [{"type": "text", "text": f"❌ ไม่พบร้านค้าในหมวด {category}"}])
 
         return "OK", 200
@@ -289,15 +337,10 @@ def webhook():
         traceback.print_exc()
         return "ERROR", 500
 
-# --- ฟังก์ชันส่ง Reply ---
-def send_reply(reply_token, access_token, messages):
-    url = "https://line.me"
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"}
-    payload = {"replyToken": reply_token, "messages": messages}
-    res = requests.post(url, headers=headers, json=payload)
-    print(f"📤 Reply Status: {res.status_code}")
-
-
+def send_reply(token, access_token, messages):
+    requests.post("https://line.me", 
+                  headers={"Authorization": f"Bearer {access_token}", "Content-Type": "application/json"},
+                  json={"replyToken": token, "messages": messages})
 #------------------------------------------------------------------------------
 #=================================end line OA ====================================
 
