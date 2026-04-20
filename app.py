@@ -119,15 +119,34 @@ def calc_costrider(price_total: float) -> float:
         print("calc_costrider error:", e)
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
+import json
+import requests
+import traceback
+from datetime import datetime
+from flask import Flask, request
 
-#=============================================================================
- 
 # ===============================================================
-# 1. ฟังก์ชันดึง CONFIG LINE ตามชื่อร้าน (OFM)
+# 1. ฟังก์ชันดึงหมวดหมู่สินค้าจาก FIRESTORE
+# ===============================================================
+def get_mod_product_direct(ofm):
+    try:
+        # Path: /{ofm}/{ofm}/modproduct
+        docs = db.collection(ofm) \
+                 .document(ofm) \
+                 .collection("modproduct") \
+                 .stream()
+
+        items = [doc.id for doc in docs] # ดึง Document ID มาเป็นชื่อหมวด
+        return items
+    except Exception as e:
+        print(f"❌ ERROR get_mod_product_direct: {str(e)}")
+        return []
+
+# ===============================================================
+# 2. ฟังก์ชันดึง CONFIG (Token)
 # ===============================================================
 def get_line_config(ofm):
     try:
-        # Path: /{ofm}/{ofm}/LineOA/channel
         doc_ref = db.collection(ofm) \
                     .document(ofm) \
                     .collection("LineOA") \
@@ -148,41 +167,24 @@ def get_line_config(ofm):
         return None
 
 # ===============================================================
-# 2. ฟังก์ชันดึงชื่อหมวดหมู่สินค้าจาก FIRESTORE โดยตรง
-# ===============================================================
-def get_mod_product_direct(ofm):
-    try:
-        # Path: /{ofm}/{ofm}/modproduct
-        docs = db.collection(ofm) \
-                 .document(ofm) \
-                 .collection("modproduct") \
-                 .stream()
-
-        items = [doc.id for doc in docs] # ดึง Document ID มาเป็นชื่อหมวด
-        return items
-    except Exception as e:
-        print(f"❌ ERROR get_mod_product_direct: {str(e)}")
-        return []
-
-# ===============================================================
-# 3. WEBHOOK (บันทึกข้อมูล + ดึงข้อมูลหมวดหมู่ + ตอบกลับเป็นข้อความ)
+# 3. WEBHOOK (บันทึกข้อมูล + บันทึกหมวดสินค้า + ตอบกลับ)
 # ===============================================================
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        # รับข้อมูลจาก LINE
         body = request.get_data()
         body_json = json.loads(body)
-        print("📩 LINE EVENT RECEIVED")
+
+        print("📩 LINE EVENT:", json.dumps(body_json, indent=2))
 
         events = body_json.get("events", [])
 
         for event in events:
             if event.get("type") == "message" and event["message"]["type"] == "text":
-                
+
                 user_message = event["message"]["text"]
 
-                # 🔥 แยก ofm | message (ตัวอย่าง: เชียงกลมออนไลน์|test)
+                # 🔥 แยก ofm | message
                 parts = user_message.split("|", 1)
                 if len(parts) < 2:
                     continue
@@ -190,41 +192,44 @@ def webhook():
                 ofm = parts[0].strip()
                 message = parts[1].strip()
                 user_id = event["source"].get("userId")
-                reply_token = event.get("replyToken")
 
-                # --- ขั้นตอนที่ 1: ดึง config จาก Firebase ---
+                # 1. ดึง config จาก Firebase
                 config = get_line_config(ofm)
-                if not config or not config.get("access_token"):
-                    print(f"⚠️ ไม่มี Token สำหรับ: {ofm}")
+                if not config:
+                    print(f"❌ ไม่มี config สำหรับ: {ofm}")
                     continue
 
-                token = config["access_token"]
+                CHANNEL_ACCESS_TOKEN = config["access_token"]
 
-                # --- ขั้นตอนที่ 2: บันทึกข้อมูลลง Firestore ---
-                print(f"💾 กำลังบันทึก Log สำหรับ: {ofm}")
-                db.collection(ofm).document(ofm).collection("LineOA").document("channel").set({
+                # 2. ดึงข้อมูลหมวดสินค้า (Items)
+                print(f"🔍 กำลังดึงหมวดสินค้าสำหรับ: {ofm}")
+                items = get_mod_product_direct(ofm)
+
+                # 3. บันทึกข้อมูลทั้งหมดลง Firestore (รวมหมวดสินค้าใน field: items)
+                print(f"💾 กำลังบันทึกข้อมูลลง Firestore...")
+                doc_ref = db.collection(ofm) \
+                            .document(ofm) \
+                            .collection("LineOA") \
+                            .document("channel")
+
+                doc_ref.set({
                     "last_message": message,
                     "last_user_id": user_id,
-                    "last_timestamp": datetime.utcnow().isoformat()
+                    "last_timestamp": datetime.utcnow().isoformat(),
+                    "mod_products": items  # 🔥 เพิ่มรายชื่อหมวดสินค้าลงในเอกสาร channel
                 }, merge=True)
 
-                # --- ขั้นตอนที่ 3: ดึงหมวดหมู่สินค้าจาก Firestore ---
-                print(f"🔍 กำลังดึงหมวดหมู่สินค้า...")
-                items = get_mod_product_direct(ofm)
-                print(f"📦 ดึงสำเร็จ: {items}")
-
-                # --- ขั้นตอนที่ 4: เตรียมข้อความตอบกลับ (Text Only) ---
+                # 4. ส่งข้อความตอบกลับ LINE
+                reply_token = event.get("replyToken")
                 headers = {
                     "Content-Type": "application/json",
-                    "Authorization": f"Bearer {token}"
+                    "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
                 }
 
-                # สร้างข้อความสรุปรายการหมวดหมู่
+                # สร้างข้อความแจ้งเตือน (ระบุจำนวนหมวดที่พบ)
+                reply_text = f"OFM: {ofm} บันทึกแล้วนะ"
                 if items:
-                    item_list_text = "\n- ".join(items)
-                    reply_text = f"✅ บันทึกแล้วนะ\n\n📦 หมวดสินค้าที่พบ:\n- {item_list_text}"
-                else:
-                    reply_text = f"✅ บันทึกแล้วนะ\n⚠️ แต่ไม่พบข้อมูลใน modproduct"
+                    reply_text += f"\nพบ {len(items)} หมวดหมู่สินค้า"
 
                 payload = {
                     "replyToken": reply_token,
@@ -236,24 +241,19 @@ def webhook():
                     ]
                 }
 
-                # --- ขั้นตอนที่ 5: ส่ง Reply กลับไปที่ LINE ---
                 res = requests.post(
-                    "https://line.me",
+                    "https://api.line.me/v2/bot/message/reply",
                     headers=headers,
-                    json=payload,
-                    timeout=5
+                    json=payload
                 )
-                print(f"📤 LINE Reply Status: {res.status_code}")
-                if res.status_code != 200:
-                    print(f"⚠️ LINE Error: {res.text}")
+                print(f"📤 ผลการตอบกลับ: {res.status_code}")
 
         return "OK", 200
 
     except Exception as e:
-        print("❌ WEBHOOK ERROR:")
+        print("ERROR:", str(e))
         traceback.print_exc()
         return "ERROR", 500
-
 
 #------------------------------------------------------------------------------
 #=================================end line OA ====================================
