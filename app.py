@@ -283,12 +283,108 @@ def build_flex_partners(ofm_name,modename, partners):
         if len(bubbles) >= 10: break
     return {"type": "flex", "altText": "รายชื่อร้านค้า", "contents": {"type": "carousel", "contents": bubbles}}
 
+#-----------------------ฟังก์ชันดึงสินค้า--------
+def get_products(ofm, shopname, modename):
+    try:
+        docs = db.collection(ofm) \
+                 .document(ofm) \
+                 .collection("partner") \
+                 .document(shopname) \
+                 .collection("mode") \
+                 .document(modename) \
+                 .collection("product") \
+                 .stream()
 
+        items = []
+        for doc in docs:
+            data = doc.to_dict()
+            items.append({
+                "productname": data.get("productname"),
+                "dataproduct": data.get("dataproduct"),
+                "image_url": data.get("image_url"),
+                "priceproduct": data.get("priceproduct")
+            })
 
+        print(f"🛒 พบ {len(items)} สินค้าใน {shopname}")
+        return items
+
+    except Exception as e:
+        print(f"❌ ERROR get_products: {str(e)}")
+        return []
+ #-------------- flex สร้างรายการสินค้า --------------------------
+def build_flex_products(products):
+    bubbles = []
+
+    for item in products:
+        bubbles.append({
+            "type": "bubble",
+            "size": "kilo",
+            "hero": {
+                "type": "image",
+                "url": item["image_url"],
+                "size": "full",
+                "aspectRatio": "20:13",
+                "aspectMode": "cover"
+            },
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": item["productname"],
+                        "weight": "bold",
+                        "size": "md",
+                        "wrap": True
+                    },
+                    {
+                        "type": "text",
+                        "text": item["dataproduct"],
+                        "size": "sm",
+                        "color": "#666666",
+                        "wrap": True
+                    },
+                    {
+                        "type": "text",
+                        "text": f"💰 {item['priceproduct']} บาท",
+                        "weight": "bold",
+                        "size": "md",
+                        "color": "#FF0000"
+                    }
+                ]
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "button",
+                        "style": "primary",
+                        "action": {
+                            "type": "message",
+                            "label": "สั่งซื้อ",
+                            "text": f"order|{item['productname']}"
+                        }
+                    }
+                ]
+            }
+        })
+
+        if len(bubbles) >= 10:
+            break
+
+    return {
+        "type": "flex",
+        "altText": "รายการสินค้า",
+        "contents": {
+            "type": "carousel",
+            "contents": bubbles
+        }
+    }
 # ===============================================================
 # 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
-# ===============================================================
-@app.route("/webhook", methods=["POST"])
+# ============================================================ 
+@app.route("/webhook", methods=["POST"]) 
 def webhook():
     try:
         body = request.get_data()
@@ -300,7 +396,6 @@ def webhook():
                 user_message = event["message"]["text"]
                 
                 parts = user_message.split("|")
-                 
 
                 ofm_name = parts[0].strip()
                 command = parts[1].strip() if len(parts) > 1 else ""
@@ -355,10 +450,8 @@ def webhook():
                 # ================= 🔵 CASE ใหม่: mode|หมวด =================
                 elif command == "mode":
 
-                    mode_name = modename   # เช่น "ไก่ทอด"
+                    mode_name = modename
 
-                    # ⚠️ ใช้ร้านหลัก (ตามโครงสร้างคุณ)
-                     
                     config = get_line_config(ofm_name)
                     if not config:
                         print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
@@ -399,7 +492,49 @@ def webhook():
 
                     if res.status_code != 200:
                         print(f"❌ Error Detail: {res.text}")
-                #================ END ================
+
+                # ================= 🔴 CASE partner =================
+                elif command == "partner":
+
+                    products = get_products(ofm_name, shopname, modename)
+
+                    config = get_line_config(ofm_name)
+                    if not config:
+                        continue
+
+                    access_token = config["access_token"]
+
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {access_token}"
+                    }
+
+                    messages_to_send = []
+
+                    if products:
+                        flex_payload = build_flex_products(products)
+                        messages_to_send.append(flex_payload)
+                    else:
+                        messages_to_send.append({
+                            "type": "text",
+                            "text": f"❌ ไม่พบสินค้าในร้าน {shopname}"
+                        })
+
+                    payload = {
+                        "replyToken": reply_token,
+                        "messages": messages_to_send
+                    }
+
+                    res = requests.post(
+                        "https://api.line.me/v2/bot/message/reply",
+                        headers=headers,
+                        json=payload
+                    )
+
+                    if res.status_code != 200:
+                        print(f"❌ Error Detail: {res.text}")
+
+                # ================= END =================
 
         return "OK", 200
 
