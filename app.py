@@ -242,68 +242,75 @@ def webhook():
             if event.get("type") == "message" and event["message"]["type"] == "text":
                 user_message = event["message"]["text"]
                 
-                # 🔥 แยก ofm | message
+                # 🔥 แยกข้อมูลด้วยเครื่องหมาย |
+                # รูปแบบที่คาดหวัง: "ชื่อร้าน|หมวดสินค้า"
                 parts = user_message.split("|", 1)
                 if len(parts) < 2: 
                     continue
 
-                ofm = parts[0].strip()
-                message = parts[1].strip()
+                ofm_name = parts[0].strip()   # ชื่อร้าน (ใช้ดึง Config/หมวดสินค้า)
+                command = parts[1].strip()    # คำสั่ง (เช่น 'หมวดสินค้า')
                 reply_token = event.get("replyToken")
 
-                # 1. ดึง config เพื่อเอา Access Token
-                config = get_line_config(ofm)
-                if not config: 
-                    continue
-                
-                CHANNEL_ACCESS_TOKEN = config["access_token"]
+                # 🚀 เงื่อนไข: ถ้าข้อความหลังเครื่องหมาย | คือ 'หมวดสินค้า' 
+                # หรือจะให้ทำงานกับทุกคำสั่งที่เป็นชื่อร้าน|... ก็ได้
+                # ================= เริ่มขอบเขตของเงื่อนไข =================
+                if command == "หมวดสินค้า" or command == "test":
+                    
+                    # 1. ดึง Config ของร้านนั้นๆ โดยเฉพาะ
+                    config = get_line_config(ofm_name)
+                    if not config: 
+                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
+                        continue
+                    
+                    access_token = config["access_token"]
 
-                # 2. ดึงข้อมูลหมวดสินค้าจาก Firestore
-                items = get_mod_product_direct(ofm)
+                    # 2. ดึงข้อมูลหมวดสินค้าของร้านนั้นๆ โดยเฉพาะ
+                    items = get_mod_product_direct(ofm_name)
 
-                # 3. เตรียม Header สำหรับส่ง LINE
-                headers = {
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
-                }
+                    # 3. เตรียม Header สำหรับ LINE OA ของร้านนั้น
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {access_token}"
+                    }
 
-                # 4. ตรวจสอบว่ามีหมวดหมู่สินค้าหรือไม่ และสร้าง Payload
-                messages_to_send = []
-                
-                if items:
-                    # สร้าง Flex Message จากรายการสินค้า
-                    flex_payload = build_flex_category(items)
-                    messages_to_send.append(flex_payload)
-                else:
-                    # กรณีไม่พบสินค้า ส่งข้อความแจ้งเตือนปกติ
-                    messages_to_send.append({
-                        "type": "text",
-                        "text": f"📍 {ofm}: ไม่พบข้อมูลหมวดหมู่สินค้าในระบบ"
-                    })
+                    # 4. สร้างข้อความตอบกลับ
+                    messages_to_send = []
+                    
+                    if items:
+                        # สร้าง Flex Carousel (รองรับสูงสุด 40 หมวดหมู่)
+                        flex_payload = build_flex_category(items)
+                        messages_to_send.append(flex_payload)
+                    else:
+                        messages_to_send.append({
+                            "type": "text",
+                            "text": f"📍 {ofm_name}: ไม่พบข้อมูลหมวดหมู่สินค้า"
+                        })
 
-                # 5. ประกอบร่าง Payload สำหรับส่ง Reply
-                payload = {
-                    "replyToken": reply_token,
-                    "messages": messages_to_send
-                }
+                    # 5. ส่ง Reply กลับไปยัง LINE OA ที่เรียกมา
+                    payload = {
+                        "replyToken": reply_token,
+                        "messages": messages_to_send
+                    }
 
-                # 6. ส่งข้อมูลกลับไปที่ LINE
-                res = requests.post(
-                    "https://api.line.me/v2/bot/message/reply",
-                    headers=headers,
-                    json=payload
-                )
-                
-                print(f"📤 ผลการตอบกลับ (OFM: {ofm}): {res.status_code}")
-                if res.status_code != 200:
-                    print(f"❌ Error Detail: {res.text}")
+                    res = requests.post(
+                        "https://api.line.me/v2/bot/message/reply",
+                        headers=headers,
+                        json=payload
+                    )
+                    
+                    print(f"📤 ผลการตอบกลับร้าน [{ofm_name}]: {res.status_code}")
+                # ================= จบขอบเขตของเงื่อนไข =================
+                    if res.status_code != 200:
+                        print(f"❌ Error Detail: {res.text}")
 
         return "OK", 200
 
     except Exception as e:
-        print("ERROR:", str(e))
+        print("❌ WEBHOOK ERROR:", str(e))
         traceback.print_exc()
         return "ERROR", 500
+
 
 
 
