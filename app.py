@@ -120,25 +120,7 @@ def calc_costrider(price_total: float) -> float:
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
 
-#=============================================================================
-def call_app_script(ofm):
-    try:
-        url = "https://script.google.com/macros/s/AKfycbxJ54NEbiEsB5fXFe-Z2yCCoetX1s89tPJxtHCWfJvUmTLKWE-W61FT4AZEA7P1XYET/exec"
-
-        res = requests.post(url, json={
-            "ofm": ofm
-        }, timeout=5)
-
-        if res.status_code == 200:
-            return res.json()   # 🔥 ต้องให้ Apps Script return JSON
-        else:
-            print("❌ Apps Script error:", res.text)
-            return None
-
-    except Exception as e:
-        print("ERROR call_app_script:", str(e))
-        return None
-    
+# ================= GET CONFIG =================
 def get_line_config(ofm):
     try:
         doc_ref = db.collection(ofm) \
@@ -156,102 +138,182 @@ def get_line_config(ofm):
 
         return {
             "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
-            "secret": data.get("LINE_CHANNEL_SECRET")
+            "secret": data.get("LINE_CHANNEL_SECRET"),
+            "app_script_url": data.get("APP_SCRIPT_URL")   # 🔥 dynamic URL
         }
 
     except Exception as e:
         print("ERROR get_line_config:", str(e))
         return None
-    #---------------------------------------------------------------
+
+
+# ================= CALL APP SCRIPT =================
+def call_app_script(ofm, app_script_url):
+    try:
+        if not app_script_url:
+            print("❌ ไม่มี URL Apps Script")
+            return None
+
+        print("🔥 CALL APP SCRIPT:", app_script_url)
+
+        res = requests.post(app_script_url, json={
+            "ofm": ofm
+        }, timeout=5)
+
+        print("STATUS:", res.status_code)
+        print("RESPONSE:", res.text)
+
+        if res.status_code == 200:
+            return res.json()
+        else:
+            return None
+
+    except Exception as e:
+        print("ERROR call_app_script:", str(e))
+        return None
+
+
+# ================= BUILD FLEX =================
+def build_flex(items):
+    contents = []
+
+    for item in items[:5]:
+        contents.append({
+            "type": "button",
+            "style": "secondary",
+            "height": "sm",
+            "action": {
+                "type": "message",
+                "label": item,
+                "text": f"mode|{item}"
+            }
+        })
+
+    return {
+        "type": "flex",
+        "altText": "เลือกหมวดสินค้า",
+        "contents": {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "contents": [
+                    {
+                        "type": "text",
+                        "text": "เลือกหมวดสินค้า",
+                        "weight": "bold"
+                    },
+                    {
+                        "type": "box",
+                        "layout": "horizontal",
+                        "contents": contents,
+                        "wrap": True
+                    }
+                ]
+            }
+        }
+    }
+
+
+# ================= WEBHOOK =================
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
-        body = request.get_data()
-        body_json = json.loads(body)
+        body = request.get_json()
+        print("📩 LINE EVENT:", json.dumps(body, indent=2))
 
-        print("LINE EVENT:", json.dumps(body_json, indent=2))
-
-        events = body_json.get("events", [])
+        events = body.get("events", [])
 
         for event in events:
-            if event.get("type") == "message":
-                if event["message"]["type"] == "text":
+            if event.get("type") != "message":
+                continue
 
-                    user_message = event["message"]["text"]
+            if event["message"]["type"] != "text":
+                continue
 
-                    # 🔥 แยก ofm | message
-                    parts = user_message.split("|", 1)
+            user_message = event["message"]["text"]
 
-                    if len(parts) < 2:
-                        continue
+            # 🔥 format: ofm|message
+            parts = user_message.split("|", 1)
+            if len(parts) < 2:
+                continue
 
-                    ofm = parts[0].strip()
-                    message = parts[1].strip()
+            ofm = parts[0].strip()
+            message = parts[1].strip()
 
-                    user_id = event["source"].get("userId")
+            user_id = event["source"].get("userId")
+            reply_token = event.get("replyToken")
 
-                    # 🔥 ดึง config จาก Firebase
-                    config = get_line_config(ofm)
+            print(f"🟢 OFM: {ofm}")
+            print(f"🟢 MSG: {message}")
 
-                    if not config:
-                        print("❌ ไม่มี config")
-                        continue
+            # ================= GET CONFIG =================
+            config = get_line_config(ofm)
+            if not config:
+                continue
 
-                    CHANNEL_ACCESS_TOKEN = config["access_token"]
+            CHANNEL_ACCESS_TOKEN = config["access_token"]
+            APP_SCRIPT_URL = config.get("app_script_url")
 
-                    # 🔥 เรียก Apps Script
-                    appscript_data = call_app_script(ofm)
+            # ================= CALL APP SCRIPT =================
+            appscript_data = call_app_script(ofm, APP_SCRIPT_URL)
 
-                    # 👉 ตัวอย่าง: Apps Script ส่งกลับ list ของ mode
-                    mode_text = ""
-                    if appscript_data and "items" in appscript_data:
-                        mode_list = [i["name"] for i in appscript_data["items"]]
-                        mode_text = " | ".join(mode_list[:5])
-                    else:
-                        mode_text = "ไม่มีข้อมูลหมวด"
+            items = []
+            if appscript_data and "items" in appscript_data:
+                items = [i["name"] for i in appscript_data["items"]]
 
-                    # 🔥 Firestore
-                    doc_ref = db.collection(ofm) \
-                                .document(ofm) \
-                                .collection("LineOA") \
-                                .document("channel")
+            print("📦 ITEMS:", items)
 
-                    doc_ref.set({
-                        "last_message": message,
-                        "last_user_id": user_id,
-                        "last_timestamp": datetime.utcnow().isoformat()
-                    }, merge=True)
+            # ================= FIRESTORE LOG =================
+            doc_ref = db.collection(ofm) \
+                        .document(ofm) \
+                        .collection("LineOA") \
+                        .document("channel")
 
-                    # 🔥 reply
-                    reply_token = event.get("replyToken")
+            doc_ref.set({
+                "last_message": message,
+                "last_user_id": user_id,
+                "last_timestamp": datetime.utcnow().isoformat()
+            }, merge=True)
 
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
-                    }
+            # ================= REPLY =================
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {CHANNEL_ACCESS_TOKEN}"
+            }
 
-                    payload = {
-                        "replyToken": reply_token,
-                        "messages": [
-                            {
-                                "type": "text",
-                                "text": f"OFM: {ofm}\nหมวด: {mode_text}"
-                            }
-                        ]
-                    }
+            if items:
+                flex = build_flex(items)
 
-                    requests.post(
-                        "https://api.line.me/v2/bot/message/reply",
-                        headers=headers,
-                        json=payload
-                    )
+                payload = {
+                    "replyToken": reply_token,
+                    "messages": [flex]
+                }
+
+            else:
+                payload = {
+                    "replyToken": reply_token,
+                    "messages": [
+                        {
+                            "type": "text",
+                            "text": "❌ ไม่พบข้อมูลหมวดสินค้า"
+                        }
+                    ]
+                }
+
+            requests.post(
+                "https://api.line.me/v2/bot/message/reply",
+                headers=headers,
+                json=payload
+            )
 
         return "OK", 200
 
     except Exception as e:
-        print("ERROR:", str(e))
+        print("❌ ERROR:", str(e))
         traceback.print_exc()
         return "ERROR", 500
+
 #------------------------------------------------------------------------------
 #=================================end line OA ====================================
 
