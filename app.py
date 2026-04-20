@@ -167,48 +167,54 @@ def get_line_config(ofm):
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
+#def build_flex_category(items):
 def build_flex_category(items):
-    # สร้างปุ่มกดจาก List หมวดหมู่
-    buttons = []
+    bubbles = []
+    
+    # วนลูปสร้าง Bubble สำหรับแต่ละหมวดหมู่ (1 Bubble ต่อ 1 หมวดหมู่ เพื่อให้สไลด์ได้)
     for item in items:
-        buttons.append({
-            "type": "button",
-            "style": "secondary",
-            "height": "sm",
-            "action": {
-                "type": "message",
-                "label": item,           # ข้อความที่แสดงบนปุ่ม
-                "text": f"mode|{item}"  # ข้อความที่จะถูกส่งเมื่อกดปุ่ม
-            }
-        })
-
-    return {
-        "type": "flex",
-        "altText": "กรุณาเลือกหมวดหมู่สินค้า",
-        "contents": {
+        bubbles.append({
             "type": "bubble",
+            "size": "micro", # ใช้ขนาดจิ๋วเพื่อให้เห็นหลายอันในหน้าจอเดียว
             "body": {
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
                     {
                         "type": "text",
-                        "text": "📦 เลือกหมวดหมู่สินค้า",
+                        "text": item,
                         "weight": "bold",
-                        "size": "lg",
-                        "color": "#1DB446"
+                        "size": "sm",
+                        "align": "center",
+                        "wrap": True
                     },
                     {
-                        "type": "box",
-                        "layout": "vertical", # ใช้ vertical เพื่อให้ปุ่มเรียงลงมาตามลำดับ
-                        "contents": buttons,
-                        "spacing": "sm",
-                        "margin": "lg"
+                        "type": "button",
+                        "style": "primary",
+                        "color": "#1DB446",
+                        "height": "sm",
+                        "margin": "md",
+                        "action": {
+                            "type": "message",
+                            "label": "เลือก",
+                            "text": f"mode|{item}"
+                        }
                     }
-                ]
+                ],
+                "paddingAll": "10px"
             }
+        })
+
+    # ส่งกลับเป็นโครงสร้างแบบ Carousel
+    return {
+        "type": "flex",
+        "altText": "เลือกหมวดหมู่สินค้า",
+        "contents": {
+            "type": "carousel", # 🔥 เปลี่ยนจาก bubble เป็น carousel
+            "contents": bubbles
         }
     }
+
 
 # ===============================================================
 # 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
@@ -2156,7 +2162,7 @@ def register_admin_full():
  
 # ------------------------------------
  
-import traceback
+ 
 
 @app.route("/get_market_page", methods=["GET"])
 def get_market_page():
