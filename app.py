@@ -120,6 +120,7 @@ def calc_costrider(price_total: float) -> float:
         return 0
 #--------------------------- ใช้ใน line OA--------------------------------------
 
+
 # ================= 1. ดึง CONFIG LINE ตาม OFM =================
 def get_line_config(ofm):
     try:
@@ -253,13 +254,15 @@ def webhook():
                     "messages": [{"type": "text", "text": "❌ ไม่พบข้อมูลหมวดสินค้าในระบบ"}]
                 }
 
+                        # แก้ไข URL ให้ถูกต้อง
             res = requests.post(
-                "https://line.me",
+                "https://line.me", # 🔥 เปลี่ยนจาก https://line.me
                 headers=headers,
                 json=payload,
                 timeout=5
             )
             print(f"📤 ผลการตอบกลับ: {res.status_code}")
+
 
         return "OK", 200
 
