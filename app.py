@@ -318,12 +318,9 @@ def build_flex_products(products):
     # แบ่งสินค้า 4 รายการ / bubble
     for i in range(0, len(products), 4):
         chunk = products[i:i+4]
-
         contents = []
 
-        # 🔥 loop + ใช้ idx สำหรับ separator
         for idx, p in enumerate(chunk):
-
             contents.append({
                 "type": "box",
                 "layout": "horizontal",
@@ -341,26 +338,9 @@ def build_flex_products(products):
                         "layout": "vertical",
                         "spacing": "xs",
                         "contents": [
-                            {
-                                "type": "text",
-                                "text": p.get("productname", "-"),
-                                "weight": "bold",
-                                "size": "sm",
-                                "wrap": True
-                            },
-                            {
-                                "type": "text",
-                                "text": p.get("dataproduct", "-"),
-                                "size": "xs",
-                                "color": "#999999",
-                                "wrap": True
-                            },
-                            {
-                                "type": "text",
-                                "text": f"฿ {p.get('priceproduct', '-')}",
-                                "size": "sm",
-                                "color": "#FF0000"
-                            },
+                            { "type": "text", "text": p.get("productname", "-"), "weight": "bold", "size": "sm", "wrap": True },
+                            { "type": "text", "text": p.get("dataproduct", "-"), "size": "xs", "color": "#999999", "wrap": True },
+                            { "type": "text", "text": f"฿ {p.get('priceproduct', '-')}", "size": "sm", "color": "#FF0000" },
                             {
                                 "type": "button",
                                 "style": "primary",
@@ -377,14 +357,13 @@ def build_flex_products(products):
                 ]
             })
 
-            # 🔥 เส้นคั่นระหว่างสินค้า
             if idx < len(chunk) - 1:
                 contents.append({
                     "type": "separator",
                     "margin": "md"
                 })
 
-        # 🔥 bubble (ใส่ header ตรงนี้ ไม่ใช่ใน row)
+        # 🔥 Bubble พร้อมเส้นขอบสีน้ำเงิน
         bubbles.append({
             "type": "bubble",
             "size": "giga",
@@ -392,8 +371,10 @@ def build_flex_products(products):
                 "type": "box",
                 "layout": "vertical",
                 "spacing": "md",
+                "borderWidth": "2px",          # ความหนาของเส้นขอบ
+                "borderColor": "#0000FF",      # สีน้ำเงิน (Blue)
+                "cornerRadius": "md",          # ทำให้มุมขอบมนเล็กน้อย (ดูสวยกว่า)
                 "contents": [
-                    # ✅ หัวบนสุด
                     {
                         "type": "text",
                         "text": "เลือกสินค้า",
@@ -403,17 +384,13 @@ def build_flex_products(products):
                     },
                     {
                         "type": "separator",
-                        "margin": "sm",
-                        "color": "#d93e0b"
+                        "margin": "sm"
                     },
-
-                    # ✅ รายการสินค้า
                     *contents
                 ]
             }
         })
 
-        # จำกัดไม่เกิน 10 bubbles
         if len(bubbles) >= 10:
             break
 
@@ -425,6 +402,7 @@ def build_flex_products(products):
             "contents": bubbles
         }
     }
+
 # ===============================================================
 # 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
 # ============================================================ 
