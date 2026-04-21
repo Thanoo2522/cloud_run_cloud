@@ -403,7 +403,8 @@ def build_flex_products(products):
                     },
                     {
                         "type": "separator",
-                        "margin": "sm"
+                        "margin": "sm",
+                        "color": "#d93e0b"
                     },
 
                     # ✅ รายการสินค้า
