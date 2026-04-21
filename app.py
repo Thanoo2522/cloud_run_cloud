@@ -325,13 +325,14 @@ def build_flex_products(products):
         for idx, p in enumerate(chunk):
 
             contents.append({
-                "type": "box",
-                "layout": "horizontal",
-                "spacing": "sm",
-                "margin": "sm",
-                "borderWidth": "1px",          # ความหนาของเส้นขอบ
-                "borderColor": "#0000FF",      # สีน้ำเงิน (Blue)
-                "cornerRadius": "md",          # ทำให้มุมขอบมนเล็กน้อย (ดูสวยกว่า)
+                 "type": "box",
+                    "layout": "horizontal",
+                     "spacing": "md",              # เพิ่มระยะห่างระหว่าง รูปภาพ กับ ข้อความ
+                     "borderWidth": "1px",          # เส้นขอบไม่ต้องหนามากจะดูแพงกว่าครับ (1px หรือ 2px)
+                     "borderColor": "#0000FF",      # สีน้ำเงิน
+                     "cornerRadius": "md",          # มุมมนพอสวยงาม
+                     "paddingAll": "13px",          # 🔥 พื้นที่ว่างด้านในกรอบ (ช่วยให้รูปและข้อความไม่ชิดเส้นขอบ)
+                     "margin": "md",                # 🔥 ระยะห่างระหว่างกล่องสินค้าแต่ละกล่อง
                 "contents": [
                     {
                         "type": "image",
