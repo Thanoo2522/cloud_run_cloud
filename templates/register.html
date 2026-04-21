@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>สมัครสมาชิก</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+
+<h2>สมัครสมาชิก</h2>
+
+<input id="name" placeholder="ชื่อ"><br><br>
+<input id="phone" placeholder="เบอร์โทร"><br><br>
+
+<button onclick="register()">สมัคร</button>
+
+<script>
+async function main() {
+  await liff.init({ liffId: "2009858553-w282abVT" })
+}
+main()
+
+async function register() {
+  const profile = await liff.getProfile()
+
+  const data = {
+    userId: profile.userId,
+    name: document.getElementById("name").value,
+    phone: document.getElementById("phone").value
+  }
+
+  fetch("https://xxxx.ngrok-free.app/register", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(data)
+  })
+  .then(res => res.json())
+  .then(res => {
+    alert("สมัครสำเร็จ")
+  })
+}
+</script>
+
+</body>
+</html>

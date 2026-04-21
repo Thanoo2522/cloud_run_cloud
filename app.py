@@ -1,5 +1,5 @@
 from itertools import product
-from flask import Flask, request, jsonify,Response , stream_with_context
+from flask import Flask, request, jsonify,Response , stream_with_context,render_template
 import os, json, io, traceback
 import requests
 from io import BytesIO
@@ -258,7 +258,7 @@ def build_flex_partners(ofm_name,modename, partners):
             buttons.append({
                 "type": "button",
                 "style": "primary",
-                "color": "#008CFF",
+                "color": "#98c997",
                 "height": "sm",
                 "margin": "xs",
                 "action": {
@@ -384,12 +384,7 @@ def build_flex_products(products):
                 ]
             })
 
-            # 🔥 เส้นคั่นระหว่างสินค้า
-            if idx < len(chunk) - 1:
-                contents.append({
-                    "type": "separator",
-                    "margin": "md"
-                })
+ 
 
         # 🔥 bubble (ใส่ header ตรงนี้ ไม่ใช่ใน row)
         bubbles.append({
@@ -408,11 +403,7 @@ def build_flex_products(products):
                         "size": "md",
                         "color": "#050505"
                     },
-                    {
-                        "type": "separator",
-                        "margin": "sm"
-                         
-                    },
+ 
 
                     # ✅ รายการสินค้า
                     *contents
@@ -435,169 +426,66 @@ def build_flex_products(products):
 # ===============================================================
 # 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
 # ============================================================ 
-@app.route("/webhook", methods=["POST"]) 
+LINE_REPLY_URL = "https://api.line.me/v2/bot/message/reply"
+ACCESS_TOKEN = "ErYdYeBa8a8g8msJu6sg0WuVHB1W6sWF5UsKg2nCYuvQIMwF3msbexr+RB9ouCyBnBYXoYJGdSqfUj+pOw/fPYm+Na3wUTWSukXVIkcFHk2WLKQSxDtsu5F7V1CrAjfDNRW4QjyDJ0SLQ9pcLnuLrQdB04t89/1O/w1cDnyilFU="
+
+LIFF_URL = "https://liff.line.me/2009858553-w282abVT"
+
+
+@app.route("/webhook", methods=["POST"])
 def webhook():
-    try:
-        body = request.get_data()
-        body_json = json.loads(body)
-        events = body_json.get("events", [])
+    data = request.json
 
-        for event in events:
-            if event.get("type") == "message" and event["message"]["type"] == "text":
-                user_message = event["message"]["text"]
-                
-                parts = user_message.split("|")
+    events = data.get("events", [])
 
-                ofm_name = parts[0].strip()
-                command = parts[1].strip() if len(parts) > 1 else ""
-                modename = parts[2].strip() if len(parts) > 2 else ""
-                shopname = parts[3].strip() if len(parts) > 3 else ""
-                reply_token = event.get("replyToken")
+    for event in events:
+        if event["type"] == "message":
+            msg = event["message"]["text"]
+            reply_token = event["replyToken"]
 
-                # ================= CASE เดิม =================
-                if command == "หมวดสินค้า" or command == "test":
-                    
-                    config = get_line_config(ofm_name)
-                    if not config: 
-                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
-                        continue
-                    
-                    access_token = config["access_token"]
+            if msg == "สมัครสมาชิก":
+                send_liff(reply_token)
 
-                    items = get_mod_product_direct(ofm_name)
+    return "OK"
 
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {access_token}"
-                    }
 
-                    messages_to_send = []
-                    
-                    if items:
-                        flex_payload = build_flex_category(ofm_name,items)
-                        messages_to_send.append(flex_payload)
-                    else:
-                        messages_to_send.append({
-                            "type": "text",
-                            "text": f"📍 {ofm_name}: ไม่พบข้อมูลหมวดหมู่สินค้า"
-                        })
+def send_liff(reply_token):
+    headers = {
+        "Authorization": f"Bearer {ACCESS_TOKEN}",
+        "Content-Type": "application/json"
+    }
 
-                    payload = {
-                        "replyToken": reply_token,
-                        "messages": messages_to_send
-                    }
+    body = {
+        "replyToken": reply_token,
+        "messages": [
+            {
+                "type": "text",
+                "text": f"กดลิงก์เพื่อสมัครสมาชิก:\n{LIFF_URL}"
+            }
+        ]
+    }
 
-                    res = requests.post(
-                        "https://api.line.me/v2/bot/message/reply",
-                        headers=headers,
-                        json=payload
-                    )
-                    
-                    print(f"📤 ผลการตอบกลับร้าน [{ofm_name}]: {res.status_code}")
-
-                    if res.status_code != 200:
-                        print(f"❌ Error Detail: {res.text}")
-
-                # ================= 🔵 CASE ใหม่: mode|หมวด =================
-                elif command == "mode":
-
-                    mode_name = modename
-
-                    config = get_line_config(ofm_name)
-                    if not config:
-                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
-                        continue
-
-                    access_token = config["access_token"]
-
-                    partners = get_partners_direct(ofm_name)
-
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {access_token}"
-                    }
-
-                    messages_to_send = []
-
-                    if partners:
-                        flex_payload = build_flex_partners(ofm_name,mode_name, partners)
-                        messages_to_send.append(flex_payload)
-                    else:
-                        messages_to_send.append({
-                            "type": "text",
-                            "text": f"❌ ไม่พบร้านค้าในหมวด {mode_name}"
-                        })
-
-                    payload = {
-                        "replyToken": reply_token,
-                        "messages": messages_to_send
-                    }
-
-                    res = requests.post(
-                        "https://api.line.me/v2/bot/message/reply",
-                        headers=headers,
-                        json=payload
-                    )
-
-                    print(f"📤 mode -> partner [{mode_name}]: {res.status_code}")
-
-                    if res.status_code != 200:
-                        print(f"❌ Error Detail: {res.text}")
-
-                # ================= 🔴 CASE partner =================
-                elif command == "partner":
-
-                    products = get_products(ofm_name, shopname, modename)
-
-                    config = get_line_config(ofm_name)
-                    if not config:
-                        continue
-
-                    access_token = config["access_token"]
-
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {access_token}"
-                    }
-
-                    messages_to_send = []
-
-                    if products:
-                        flex_payload = build_flex_products(products)
-                        messages_to_send.append(flex_payload)
-                    else:
-                        messages_to_send.append({
-                            "type": "text",
-                            "text": f"❌ ไม่พบสินค้าในร้าน {shopname}"
-                        })
-
-                    payload = {
-                        "replyToken": reply_token,
-                        "messages": messages_to_send
-                    }
-
-                    res = requests.post(
-                        "https://api.line.me/v2/bot/message/reply",
-                        headers=headers,
-                        json=payload
-                    )
-
-                    if res.status_code != 200:
-                        print(f"❌ Error Detail: {res.text}")
-
-                # ================= END =================
-
-        return "OK", 200
-
-    except Exception as e:
-        print("❌ WEBHOOK ERROR:", str(e))
-        traceback.print_exc()
-        return "ERROR", 500
+    requests.post(LINE_REPLY_URL, headers=headers, json=body)
 
 
 
-#------------------------------------------------------------------------------
+ 
 #=================================end line OA ====================================
+#======================line OA สร้าง register ===============================
+#------------ Flask รับข้อมูลจาก HTML
+@app.route("/register", methods=["POST"])
+def register():
+    data = request.json
+
+    print("REGISTER:", data)
+
+    # TODO: บันทึก Firebase
+    return jsonify({"status": "ok"})
+
+#----------เปิดหน้า HTML ------------------------
+@app.route("/register.html")
+def register_page():
+    return render_template("register.html")
 
 #-----------------------ดึงรูปจาก Firebase Storage----------------------------------------
 @app.route("/get_bookbank_images", methods=["GET"])
