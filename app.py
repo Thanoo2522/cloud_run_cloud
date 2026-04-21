@@ -328,7 +328,8 @@ def build_flex_products(products):
                 "type": "box",
                 "layout": "horizontal",
                 "spacing": "sm",
-                "borderWidth": "2px",          # ความหนาของเส้นขอบ
+                "margin": "sm",
+                "borderWidth": "1px",          # ความหนาของเส้นขอบ
                 "borderColor": "#0000FF",      # สีน้ำเงิน (Blue)
                 "cornerRadius": "md",          # ทำให้มุมขอบมนเล็กน้อย (ดูสวยกว่า)
                 "contents": [
@@ -365,16 +366,18 @@ def build_flex_products(products):
                                 "color": "#FF0000"
                             },
                             {
-                                "type": "button",
-                                "style": "primary",
-                                "height": "sm",
-                                "margin": "sm",
-                                "action": {
-                                    "type": "message",
-                                    "label": "สั่งซื้อ",
-                                    "text": f"order|{p.get('productname', '-')}"
-                                }
+                            "type": "button",
+                            "style": "primary",
+                            "height": "sm",
+                            "margin": "sm",
+                            "flex": 0,  # 🔥 เพิ่มตรงนี้ เพื่อให้ปุ่มไม่ขยายเต็มพื้นที่
+                            "action": {
+                                         "type": "message",
+                                         "label": "สั่งซื้อ",
+                                         "text": f"order|{p.get('productname', '-')}"
+                                     }
                             }
+
                         ]
                     }
                 ]
@@ -402,7 +405,7 @@ def build_flex_products(products):
                         "text": "เลือกสินค้า",
                         "weight": "bold",
                         "size": "md",
-                        "color": "#1DB446"
+                        "color": "#050505"
                     },
                     {
                         "type": "separator",
