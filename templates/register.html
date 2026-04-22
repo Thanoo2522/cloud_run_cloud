@@ -27,7 +27,7 @@ async function register() {
     phone: document.getElementById("phone").value
   }
 
-fetch("http://127.0.0.1:5000/register", {
+fetch("https://server-ofm-419896870147.asia-southeast1.run.app/register", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(data)
