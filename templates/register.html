@@ -16,26 +16,62 @@
 <script>
 async function main() {
   await liff.init({ liffId: "2009858553-w282abVT" })
+
+  // 🔥 สำคัญมาก
+  if (!liff.isLoggedIn()) {
+    liff.login()
+  }
 }
 main()
 
 async function register() {
-  const profile = await liff.getProfile()
+  try {
+    const profile = await liff.getProfile()
 
-  const data = {
-    userId: profile.userId,    name: document.getElementById("name").value,
-    phone: document.getElementById("phone").value
+    const name = document.getElementById("name").value
+    const phone = document.getElementById("phone").value
+
+    // 🔥 กันค่าว่าง
+    if (!name || !phone) {
+      alert("กรุณากรอกข้อมูลให้ครบ")
+      return
+    }
+
+    const data = {
+      userId: profile.userId,
+      name: name,
+      phone: phone
+    }
+
+    console.log("SEND:", data)
+
+    const res = await fetch("https://server-ofm-419896870147.asia-southeast1.run.app/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    })
+
+    // 🔥 เช็ค status ก่อน
+    if (!res.ok) {
+      throw new Error("HTTP error " + res.status)
+    }
+
+    const json = await res.json()
+
+    console.log("RESULT:", json)
+
+    if (json.status === "ok") {
+      alert("สมัครสำเร็จ ✅")
+    } else {
+      alert("เกิดข้อผิดพลาด")
+    }
+
+  } catch (err) {
+    console.error("ERROR:", err)
+    alert("สมัครไม่สำเร็จ ❌")
   }
-
-fetch("https://server-ofm-419896870147.asia-southeast1.run.app/register", {
-    method: "POST",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify(data)
-  })
-  .then(res => res.json())
-  .then(res => {
-    alert("สมัครสำเร็จ")
-  })
 }
 </script>
 

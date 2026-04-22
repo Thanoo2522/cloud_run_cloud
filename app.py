@@ -14,6 +14,8 @@ from datetime import datetime
  
  
  
+ 
+ 
 
  
 # ---------------------------- 
@@ -549,21 +551,29 @@ def webhook():
 #------------ Flask รับข้อมูลจาก HTML
 @app.route("/register", methods=["POST"])
 def register():
-    data = request.json
+    try:
+        data = request.get_json()  # 🔥 เปลี่ยนจาก request.json
 
-    print("REGISTER:", data)
+        print("REGISTER:", data)
 
-    user_id = data.get("userId")
-    name = data.get("name")
-    phone = data.get("phone")
+        user_id = data.get("userId")
+        name = data.get("name")
+        phone = data.get("phone")
 
-    db.collection("users").document(user_id).set({
-        "name": name,
-        "phone": phone,
-        "created_at": datetime.utcnow()
-    })
+        if not user_id:
+            return jsonify({"status": "error", "msg": "no userId"})
 
-    return jsonify({"status": "ok"})
+        db.collection("users").document(user_id).set({
+            "name": name,
+            "phone": phone,
+            "created_at": datetime.utcnow()
+        })
+
+        return jsonify({"status": "ok"})
+
+    except Exception as e:
+        print("❌ REGISTER ERROR:", e)
+        return jsonify({"status": "error"})
 
 #----------เปิดหน้า HTML ------------------------
 @app.route("/register.html")
