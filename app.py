@@ -434,149 +434,105 @@ def webhook():
         events = body_json.get("events", [])
 
         for event in events:
-            if event.get("type") == "message" and event["message"]["type"] == "text":
-                user_message = event["message"]["text"]
-                
-                parts = user_message.split("|")
+            if event.get("type") != "message" or event["message"]["type"] != "text":
+                continue
 
-                ofm_name = parts[0].strip()
-                command = parts[1].strip() if len(parts) > 1 else "" 
-                modename = parts[2].strip() if len(parts) > 2 else ""
-                shopname = parts[3].strip() if len(parts) > 3 else ""
-                reply_token = event.get("replyToken")
+            user_message = event["message"]["text"]
+            parts = user_message.split("|")
 
-                # ================= CASE เดิม =================
-                if command == "หมวดสินค้า" or command == "test":
-                    
-                    config = get_line_config(ofm_name)
-                    if not config: 
-                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
-                        continue
-                    
-                    access_token = config["access_token"]
+            ofm_name = parts[0].strip()
+            command = parts[1].strip() if len(parts) > 1 else "" 
+            modename = parts[2].strip() if len(parts) > 2 else ""
+            shopname = parts[3].strip() if len(parts) > 3 else ""
+            reply_token = event.get("replyToken")
 
-                    items = get_mod_product_direct(ofm_name)
+            # 🔥 ดึง config ครั้งเดียว
+            config = get_line_config(ofm_name)
+            if not config:
+                print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
+                continue
 
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {access_token}"
-                    }
+            access_token = config["access_token"]
 
-                    messages_to_send = []
-                    
-                    if items:
-                        flex_payload = build_flex_category(ofm_name,items)
-                        messages_to_send.append(flex_payload)
-                    else:
-                        messages_to_send.append({
-                            "type": "text",
-                            "text": f"📍 {ofm_name}: ไม่พบข้อมูลหมวดหมู่สินค้า"
-                        })
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}"
+            }
 
-                    payload = {
-                        "replyToken": reply_token,
-                        "messages": messages_to_send
-                    }
+            messages_to_send = []
 
-                    res = requests.post(
-                        "https://api.line.me/v2/bot/message/reply",
-                        headers=headers,
-                        json=payload
-                    )
-                    
-                    print(f"📤 ผลการตอบกลับร้าน [{ofm_name}]: {res.status_code}")
+            # ================= CASE: หมวดสินค้า =================
+            if command in ["หมวดสินค้า", "test"]:
 
-                    if res.status_code != 200:
-                        print(f"❌ Error Detail: {res.text}")
+                items = get_mod_product_direct(ofm_name)
 
-                # ================= 🔵 CASE ใหม่: mode|หมวด =================
-                elif command == "mode":
+                if items:
+                    messages_to_send.append(build_flex_category(ofm_name, items))
+                else:
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": f"📍 {ofm_name}: ไม่พบข้อมูลหมวดหมู่สินค้า"
+                    })
 
-                    mode_name = modename
+            # ================= CASE: mode =================
+            elif command == "mode":
 
-                    config = get_line_config(ofm_name)
-                    if not config:
-                        print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
-                        continue
+                partners = get_partners_direct(ofm_name)
 
-                    access_token = config["access_token"]
+                if partners:
+                    messages_to_send.append(build_flex_partners(ofm_name, modename, partners))
+                else:
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": f"❌ ไม่พบร้านค้าในหมวด {modename}"
+                    })
 
-                    partners = get_partners_direct(ofm_name)
+            # ================= CASE: partner =================
+            elif command == "partner":
 
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {access_token}"
-                    }
+                products = get_products(ofm_name, shopname, modename)
 
-                    messages_to_send = []
+                if products:
+                    messages_to_send.append(build_flex_products(products))
+                else:
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": f"❌ ไม่พบสินค้าในร้าน {shopname}"
+                    })
 
-                    if partners:
-                        flex_payload = build_flex_partners(ofm_name,mode_name, partners)
-                        messages_to_send.append(flex_payload)
-                    else:
-                        messages_to_send.append({
-                            "type": "text",
-                            "text": f"❌ ไม่พบร้านค้าในหมวด {mode_name}"
-                        })
+            # ================= CASE: register =================
+            elif command == "register":
 
-                    payload = {
-                        "replyToken": reply_token,
-                        "messages": messages_to_send
-                    }
+                liff_url = "https://liff.line.me/2009858553-w282abVT"
 
-                    res = requests.post(
-                        "https://api.line.me/v2/bot/message/reply",
-                        headers=headers,
-                        json=payload
-                    )
+                messages_to_send.append({
+                    "type": "text",
+                    "text": f"👉 กดสมัครสมาชิกที่นี่\n{liff_url}"
+                })
 
-                    print(f"📤 mode -> partner [{mode_name}]: {res.status_code}")
+            # ================= DEFAULT =================
+            else:
+                messages_to_send.append({
+                    "type": "text",
+                    "text": "❗ คำสั่งไม่ถูกต้อง"
+                })
 
-                    if res.status_code != 200:
-                        print(f"❌ Error Detail: {res.text}")
+            # 🔥 ส่ง reply กลาง (ไม่ต้องเขียนซ้ำทุก case)
+            payload = {
+                "replyToken": reply_token,
+                "messages": messages_to_send
+            }
 
-                # ================= 🔴 CASE partner =================
-                elif command == "partner":
+            res = requests.post(
+                "https://api.line.me/v2/bot/message/reply",
+                headers=headers,
+                json=payload
+            )
 
-                    products = get_products(ofm_name, shopname, modename)
+            print(f"📤 Reply [{command}] -> {res.status_code}")
 
-                    config = get_line_config(ofm_name)
-                    if not config:
-                        continue
-
-                    access_token = config["access_token"]
-
-                    headers = {
-                        "Content-Type": "application/json",
-                        "Authorization": f"Bearer {access_token}"
-                    }
-
-                    messages_to_send = []
-
-                    if products:
-                        flex_payload = build_flex_products(products)
-                        messages_to_send.append(flex_payload)
-                    else:
-                        messages_to_send.append({
-                            "type": "text",
-                            "text": f"❌ ไม่พบสินค้าในร้าน {shopname}"
-                        })
-
-                    payload = {
-                        "replyToken": reply_token,
-                        "messages": messages_to_send
-                    }
-
-                    res = requests.post(
-                        "https://api.line.me/v2/bot/message/reply",
-                        headers=headers,
-                        json=payload
-                    )
-
-                    if res.status_code != 200:
-                        print(f"❌ Error Detail: {res.text}")
-
-                # ================= END =================
+            if res.status_code != 200:
+                print(f"❌ Error Detail: {res.text}")
 
         return "OK", 200
 
@@ -597,7 +553,16 @@ def register():
 
     print("REGISTER:", data)
 
-    # TODO: บันทึก Firebase
+    user_id = data.get("userId")
+    name = data.get("name")
+    phone = data.get("phone")
+
+    db.collection("users").document(user_id).set({
+        "name": name,
+        "phone": phone,
+        "created_at": datetime.utcnow()
+    })
+
     return jsonify({"status": "ok"})
 
 #----------เปิดหน้า HTML ------------------------
