@@ -33,7 +33,6 @@ if not service_account_json:
 
 cred = credentials.Certificate(json.loads(service_account_json))
 #-----------------------
-cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(
     cred,
     {
