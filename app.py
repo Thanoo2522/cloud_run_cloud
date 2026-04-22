@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import time
 from datetime import datetime
+from flask_cors import CORS
  
  
  
@@ -22,7 +23,7 @@ from datetime import datetime
 # Flask
 # ------------------------------------
 app = Flask(__name__)
-
+CORS(app)   # 🔥 ต้องมี
 # ------------------------------------
 # Firebase Config
 # ------------------------------------
