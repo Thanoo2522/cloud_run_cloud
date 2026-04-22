@@ -23,12 +23,11 @@ async function register() {
   const profile = await liff.getProfile()
 
   const data = {
-    userId: profile.userId,
-    name: document.getElementById("name").value,
+    userId: profile.userId,    name: document.getElementById("name").value,
     phone: document.getElementById("phone").value
   }
 
-  fetch("https://xxxx.ngrok-free.app/register", {
+fetch("http://127.0.0.1:5000/register", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify(data)
