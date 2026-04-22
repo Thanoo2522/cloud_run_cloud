@@ -14,63 +14,85 @@
 <button onclick="register()">สมัคร</button>
 
 <script>
-async function main() {
-  await liff.init({ liffId: "2009858553-w282abVT" })
+let userProfile = null
 
-  // 🔥 สำคัญมาก
-  if (!liff.isLoggedIn()) {
-    liff.login()
+async function main() {
+  try {
+    await liff.init({ liffId: "2009858553-w282abVT" })
+
+    // 🔥 ต้อง login ก่อนทุกครั้ง
+    if (!liff.isLoggedIn()) {
+      liff.login()
+      return
+    }
+
+    // 🔥 เก็บ profile ไว้ใช้
+    userProfile = await liff.getProfile()
+
+    console.log("PROFILE:", userProfile)
+
+  } catch (err) {
+    console.error("LIFF ERROR:", err)
   }
 }
+
 main()
 
 async function register() {
   try {
-    const profile = await liff.getProfile()
 
-    const name = document.getElementById("name").value
-    const phone = document.getElementById("phone").value
+    if (!userProfile) {
+      userProfile = await liff.getProfile()
+    }
 
-    // 🔥 กันค่าว่าง
+    const name = document.getElementById("name").value.trim()
+    const phone = document.getElementById("phone").value.trim()
+
     if (!name || !phone) {
       alert("กรุณากรอกข้อมูลให้ครบ")
       return
     }
 
     const data = {
-      userId: profile.userId,
+      userId: userProfile.userId,
       name: name,
       phone: phone
     }
 
-    console.log("SEND:", data)
+    console.log("SEND TO SERVER:", data)
 
-    const res = await fetch("https://server-ofm-419896870147.asia-southeast1.run.app/register", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    })
+    const res = await fetch(
+      "https://server-ofm-419896870147.asia-southeast1.run.app/register",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(data)
+      }
+    )
 
-    // 🔥 เช็ค status ก่อน
-    if (!res.ok) {
-      throw new Error("HTTP error " + res.status)
+    const text = await res.text()   // 🔥 กันกรณี JSON error
+    console.log("RAW RESPONSE:", text)
+
+    let json
+    try {
+      json = JSON.parse(text)
+    } catch (e) {
+      throw new Error("Server ไม่ได้ส่ง JSON กลับ")
     }
-
-    const json = await res.json()
-
-    console.log("RESULT:", json)
 
     if (json.status === "ok") {
       alert("สมัครสำเร็จ ✅")
+      liff.closeWindow() // 🔥 ปิดหน้า LIFF
     } else {
-      alert("เกิดข้อผิดพลาด")
+      alert("สมัครไม่สำเร็จ ❌")
+      console.log(json)
     }
 
   } catch (err) {
-    console.error("ERROR:", err)
-    alert("สมัครไม่สำเร็จ ❌")
+    console.error("REGISTER ERROR:", err)
+    alert("สมัครไม่สำเร็จ ❌ " + err.message)
   }
 }
 </script>
