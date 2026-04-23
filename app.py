@@ -151,23 +151,23 @@ def get_line_config(ofm):
                     .document("channel")
 
         doc = doc_ref.get()
+
         if not doc.exists:
             print(f"❌ ไม่พบ config ของ OFM: {ofm}")
             return None
 
-        data = doc.to_dict()
+        data = doc.to_dict() or {}
 
         return {
             "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
             "secret": data.get("LINE_CHANNEL_SECRET"),
-
-            # 🔥 เพิ่มตรงนี้
+            "urlserver": data.get("urlserver"),
             "liffId": data.get("liffId"),
             "apiUrl": data.get("apiUrl")
         }
 
     except Exception as e:
-        print("ERROR get_line_config:", str(e))
+        print("❌ ERROR get_line_config:", str(e))
         return None
 #-----------------สร้าง API สำหรับ HTML เรียก config
 @app.route("/config/<ofm>", methods=["GET"])
@@ -525,19 +525,19 @@ def webhook():
             elif command == "register":
 
                 liff_id = config.get("liffId")
+                url_server = config.get("urlserver")
 
-                if not liff_id:
-                    messages_to_send.append({
-                        "type": "text",
-                        "text": "❌ ยังไม่ได้ตั้งค่า LIFF"
-                    })
+                if not liff_id or not url_server:
+                            messages_to_send.append({
+                            "type": "text",
+                             "text": "❌ ยังไม่ได้ตั้งค่า LIFF หรือ Server"
+                             })
                 else:
-                    liff_url = f"https://liff.line.me/{liff_id}?ofm={ofm_name}"
-
+                    liff_url = f"https://liff.line.me/{liff_id}?ofm={ofm_name}&server={url_server}"
                     messages_to_send.append({
-                        "type": "text",
-                        "text": f"👉 กดสมัครสมาชิกที่นี่\n{liff_url}"
-                    })
+                            "type": "text",
+                            "text": f"👉 กดสมัครสมาชิกที่นี่\n{liff_url}"
+                             })
 
             # ================= DEFAULT =================
             else:
