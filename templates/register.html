@@ -55,18 +55,19 @@ let API_URL = ""
 let LIFF_ID = ""
 let OFM = ""
 
-// 🔥 ดึง ofm จาก URL
+// 🔥 เปลี่ยนเป็น URL Cloud Run ของคุณ
+const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app"
+
+// ================= GET OFM =================
 function getOfmFromUrl() {
   const params = new URLSearchParams(window.location.search)
   return params.get("ofm")
 }
 
- 
-
+// ================= INIT =================
 async function initApp() {
   try {
 
-    // ✅ STEP 1: เอา ofm
     OFM = getOfmFromUrl()
 
     if (!OFM) {
@@ -76,9 +77,8 @@ async function initApp() {
 
     console.log("OFM:", OFM)
 
-    // ✅ STEP 2: โหลด config จาก backend
-    // ✅ ถูกต้อง
-    const res = await fetch(`/config/${OFM}`)
+    // ✅ โหลด config จาก Flask
+    const res = await fetch(`${BASE_URL}/config/${OFM}`)
     const config = await res.json()
 
     console.log("CONFIG:", config)
@@ -91,7 +91,12 @@ async function initApp() {
     LIFF_ID = config.liffId
     API_URL = config.apiUrl
 
-    // ✅ STEP 3: init LIFF
+    if (!LIFF_ID || !API_URL) {
+      alert("❌ config ไม่ครบ")
+      return
+    }
+
+    // ✅ init LIFF
     await liff.init({ liffId: LIFF_ID })
 
     if (!liff.isLoggedIn()) {
@@ -99,7 +104,7 @@ async function initApp() {
       return
     }
 
-    console.log("LIFF READY")
+    console.log("✅ LIFF READY")
 
   } catch (err) {
     console.error("INIT ERROR:", err)
@@ -112,6 +117,7 @@ initApp()
 // ================= REGISTER =================
 async function register() {
   try {
+
     const profile = await liff.getProfile()
 
     const name = document.getElementById("name").value
@@ -119,7 +125,6 @@ async function register() {
     const address = document.getElementById("address").value
     const phone = document.getElementById("phone").value
 
-    // 🔥 validation
     if (!name || !home || !address || !phone) {
       alert("กรุณากรอกข้อมูลให้ครบ")
       return
@@ -143,10 +148,6 @@ async function register() {
       },
       body: JSON.stringify(data)
     })
-
-    if (!res.ok) {
-      throw new Error("HTTP " + res.status)
-    }
 
     const json = await res.json()
 

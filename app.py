@@ -151,6 +151,7 @@ def get_line_config(ofm):
                     .document("channel")
 
         doc = doc_ref.get()
+
         if not doc.exists:
             print(f"❌ ไม่พบ config ของ OFM: {ofm}")
             return None
@@ -160,8 +161,6 @@ def get_line_config(ofm):
         return {
             "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
             "secret": data.get("LINE_CHANNEL_SECRET"),
-
-             
             "urlserver": data.get("urlserver"),
             "liffId": data.get("liffId"),
             "apiUrl": data.get("apiUrl")
@@ -170,18 +169,25 @@ def get_line_config(ofm):
     except Exception as e:
         print("ERROR get_line_config:", str(e))
         return None
-#-----------------สร้าง API สำหรับ HTML เรียก config
+
+
+# ================= API: GET CONFIG =================
 @app.route("/config/<ofm>", methods=["GET"])
 def get_config_api(ofm):
     config = get_line_config(ofm)
 
     if not config:
-        return jsonify({"status": "error"})
+        return jsonify({
+            "status": "error",
+            "message": "ไม่พบ config"
+        })
 
     return jsonify({
+        "status": "ok",
         "liffId": config.get("liffId"),
         "apiUrl": config.get("apiUrl")
     })
+
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
@@ -586,29 +592,31 @@ def register():
     try:
         data = request.get_json()
 
-        print("REGISTER:", data)
+        print("📥 DATA:", data)
 
-        user_id = data.get("userId")
-        name = data.get("name")
-        home = data.get("home")
-        address = data.get("address")
-        phone = data.get("phone")
+        ofm = data.get("ofm")
+        userId = data.get("userId")
 
-        if not user_id:
-            return jsonify({"status": "error", "msg": "no userId"})
+        if not ofm or not userId:
+            return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ"})
 
-        db.collection("users").document(user_id).set({
-            "name": name,
-            "home": home,
-            "address": address,
-            "phone": phone,
-            "created_at": datetime.utcnow()
-        })
+        # 🔥 บันทึกลง Firebase
+        db.collection(ofm) \
+          .document(ofm) \
+          .collection("members") \
+          .document(userId) \
+          .set({
+              "name": data.get("name"),
+              "home": data.get("home"),
+              "address": data.get("address"),
+              "phone": data.get("phone"),
+              "userId": userId
+          })
 
         return jsonify({"status": "ok"})
 
     except Exception as e:
-        print("❌ REGISTER ERROR:", e)
+        print("❌ REGISTER ERROR:", str(e))
         return jsonify({"status": "error"})
 
 #----------เปิดหน้า HTML ------------------------
