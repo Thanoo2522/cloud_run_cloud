@@ -182,11 +182,10 @@ def get_config_api(ofm):
         })
 
     return jsonify({
-        "status": "ok",
-        "liffId": config.get("liffId"),
-        "apiUrl": config.get("apiUrl"),
-       
-    })
+    "status": "ok",
+    "liffId": config.get("liffId"),
+    "apiUrl": config.get("apiUrl"),
+     })
 
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)

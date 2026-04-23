@@ -93,13 +93,13 @@ async function initApp() {
 
     console.log("CONFIG:", config)
 
-    if (config.status !== "ok") {
+    if (!config.liffId || !config.apiUrl) {
       alert("❌ โหลด config ไม่สำเร็จ")
       return
     }
 
-    LIFF_ID = config.liffId
-    API_URL = config.apiUrl
+    API_URL = config.apiUrl.trim()
+    LIFF_ID = config.liffId.trim()
 
     if (!LIFF_ID || !API_URL) {
       alert("❌ config ไม่ครบ")
