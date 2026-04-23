@@ -63,7 +63,7 @@ function getOfmFromUrl() {
   const urlParams = new URLSearchParams(window.location.search)
   let ofm = urlParams.get("ofm")
 
-  // fallback สำหรับ LIFF
+  // fallback สำหรับ LIFF context
   if (!ofm) {
     const context = liff.getContext()
     if (context && context.referrer && context.referrer.extra) {
@@ -105,8 +105,9 @@ async function initApp() {
       return
     }
 
-    LIFF_ID = config.liffId?.trim()
-    API_URL = config.apiUrl?.trim()
+    // 🔥 กัน \n / space / bad data
+    LIFF_ID = (config.liffId || "").trim()
+    API_URL = (config.apiUrl || "").trim()
 
     console.log("LIFF_ID:", LIFF_ID)
     console.log("API_URL:", API_URL)
