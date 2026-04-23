@@ -159,12 +159,11 @@ def get_line_config(ofm):
         data = doc.to_dict()
 
         return {
-                 "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
-                 "secret": data.get("LINE_CHANNEL_SECRET"),
-                 "urlserver": data.get("urlserver").strip() if data.get("urlserver") else None,
-                 "liffId": data.get("liffId").strip() if data.get("liffId") else None,
-                 "apiUrl": data.get("apiUrl").strip() if data.get("apiUrl") else None
-              }
+            "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
+            "secret": data.get("LINE_CHANNEL_SECRET"),
+             "liffId": data.get("liffId"),
+            "apiUrl": data.get("apiUrl")
+        }
 
     except Exception as e:
         print("ERROR get_line_config:", str(e))
@@ -186,7 +185,7 @@ def get_config_api(ofm):
         "status": "ok",
         "liffId": config.get("liffId"),
         "apiUrl": config.get("apiUrl"),
-         "urlserver": config.get("urlserver")
+       
     })
 
  # ===============================================================
@@ -604,7 +603,7 @@ def register():
         # 🔥 บันทึกลง Firebase
         db.collection(ofm) \
           .document(ofm) \
-          .collection("members") \
+          .collection("customers") \
           .document(userId) \
           .set({
               "name": data.get("name"),
