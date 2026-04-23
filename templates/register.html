@@ -57,30 +57,33 @@ let OFM = ""
 
 async function initApp() {
   try {
-    // 🔥 อ่าน ofm จาก URL เช่น ?ofm=เชียงกลมออนไลน์
-    const urlParams = new URLSearchParams(window.location.search)
-    OFM = urlParams.get("ofm")
+
+    await liff.init({ liffId: LIFF_ID })
+
+    if (!liff.isLoggedIn()) {
+      liff.login()
+      return
+    }
+
+    // 🔥 ใช้วิธีนี้แทน URL
+    const context = liff.getContext()
+
+    console.log("LIFF CONTEXT:", context)
+
+    // 🔥 ดึง ofm จาก state (สำคัญมาก)
+    OFM = context?.state?.replace("?", "").split("=")[1]
 
     if (!OFM) {
       alert("ไม่พบ ofm")
       return
     }
 
-    // 🔥 ดึง config จาก Flask
+    // 🔥 ดึง config จาก backend
     const res = await fetch(`/get_liff_config?ofm=${OFM}`)
     const config = await res.json()
 
-    console.log("CONFIG:", config)
-
     API_URL = config.apiUrl
     LIFF_ID = config.liffId
-
-    // 🔥 init LIFF
-    await liff.init({ liffId: LIFF_ID })
-
-    if (!liff.isLoggedIn()) {
-      liff.login()
-    }
 
   } catch (err) {
     console.error(err)
