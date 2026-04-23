@@ -61,6 +61,8 @@ function getOfmFromUrl() {
   return params.get("ofm")
 }
 
+ 
+
 async function initApp() {
   try {
 
@@ -75,7 +77,8 @@ async function initApp() {
     console.log("OFM:", OFM)
 
     // ✅ STEP 2: โหลด config จาก backend
-    const res = await fetch(`/config?ofm=${OFM}`)
+    // ✅ ถูกต้อง
+    const res = await fetch(`/config/${OFM}`)
     const config = await res.json()
 
     console.log("CONFIG:", config)
