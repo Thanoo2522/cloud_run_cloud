@@ -158,7 +158,7 @@ def get_line_config(ofm):
 
         data = doc.to_dict()
 
-          return {
+        return {
                  "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
                  "secret": data.get("LINE_CHANNEL_SECRET"),
                  "urlserver": data.get("urlserver").strip() if data.get("urlserver") else None,
