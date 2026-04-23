@@ -158,13 +158,13 @@ def get_line_config(ofm):
 
         data = doc.to_dict()
 
-        return {
-            "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
-            "secret": data.get("LINE_CHANNEL_SECRET"),
-            "urlserver": data.get("urlserver"),
-            "liffId": data.get("liffId"),
-            "apiUrl": data.get("apiUrl")
-        }
+          return {
+                 "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
+                 "secret": data.get("LINE_CHANNEL_SECRET"),
+                 "urlserver": data.get("urlserver").strip() if data.get("urlserver") else None,
+                 "liffId": data.get("liffId").strip() if data.get("liffId") else None,
+                 "apiUrl": data.get("apiUrl").strip() if data.get("apiUrl") else None
+              }
 
     except Exception as e:
         print("ERROR get_line_config:", str(e))

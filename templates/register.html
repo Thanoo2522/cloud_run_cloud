@@ -106,9 +106,9 @@ async function initApp() {
       return
     }
 
-    LIFF_ID = config.liffId
-    API_URL = config.apiUrl
-    BASE_URL = config.urlserver
+    LIFF_ID = config.liffId.trim()
+    API_URL = config.apiUrl.trim()
+    BASE_URL = config.urlserver.trim()
 
     console.log("LIFF_ID:", LIFF_ID)
     console.log("API_URL:", API_URL)
