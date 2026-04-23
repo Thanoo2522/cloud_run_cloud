@@ -156,15 +156,31 @@ def get_line_config(ofm):
             return None
 
         data = doc.to_dict()
+
         return {
             "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
-            "secret": data.get("LINE_CHANNEL_SECRET")
+            "secret": data.get("LINE_CHANNEL_SECRET"),
+
+            # 🔥 เพิ่มตรงนี้
+            "liffId": data.get("liffId"),
+            "apiUrl": data.get("apiUrl")
         }
+
     except Exception as e:
         print("ERROR get_line_config:", str(e))
         return None
+#-----------------สร้าง API สำหรับ HTML เรียก config
+@app.route("/config/<ofm>", methods=["GET"])
+def get_config_api(ofm):
+    config = get_line_config(ofm)
 
+    if not config:
+        return jsonify({"status": "error"})
 
+    return jsonify({
+        "liffId": config.get("liffId"),
+        "apiUrl": config.get("apiUrl")
+    })
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
@@ -429,7 +445,7 @@ def build_flex_products(products):
 # ===============================================================
 # 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
 # ============================================================ 
-@app.route("/webhook", methods=["POST"]) 
+@app.route("/webhook", methods=["POST"])
 def webhook():
     try:
         body = request.get_data()
@@ -444,18 +460,18 @@ def webhook():
             parts = user_message.split("|")
 
             ofm_name = parts[0].strip()
-            command = parts[1].strip() if len(parts) > 1 else "" 
+            command = parts[1].strip() if len(parts) > 1 else ""
             modename = parts[2].strip() if len(parts) > 2 else ""
             shopname = parts[3].strip() if len(parts) > 3 else ""
             reply_token = event.get("replyToken")
 
-            # 🔥 ดึง config ครั้งเดียว
+            # 🔥 ดึง config
             config = get_line_config(ofm_name)
             if not config:
                 print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
                 continue
 
-            access_token = config["access_token"]
+            access_token = config.get("access_token")
 
             headers = {
                 "Content-Type": "application/json",
@@ -483,7 +499,9 @@ def webhook():
                 partners = get_partners_direct(ofm_name)
 
                 if partners:
-                    messages_to_send.append(build_flex_partners(ofm_name, modename, partners))
+                    messages_to_send.append(
+                        build_flex_partners(ofm_name, modename, partners)
+                    )
                 else:
                     messages_to_send.append({
                         "type": "text",
@@ -506,12 +524,20 @@ def webhook():
             # ================= CASE: register =================
             elif command == "register":
 
-                liff_url = "https://liff.line.me/2009858553-w282abVT"
+                liff_id = config.get("liffId")
 
-                messages_to_send.append({
-                    "type": "text",
-                    "text": f"👉 กดสมัครสมาชิกที่นี่\n{liff_url}"
-                })
+                if not liff_id:
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": "❌ ยังไม่ได้ตั้งค่า LIFF"
+                    })
+                else:
+                    liff_url = f"https://liff.line.me/{liff_id}?ofm={ofm_name}"
+
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": f"👉 กดสมัครสมาชิกที่นี่\n{liff_url}"
+                    })
 
             # ================= DEFAULT =================
             else:
@@ -520,7 +546,7 @@ def webhook():
                     "text": "❗ คำสั่งไม่ถูกต้อง"
                 })
 
-            # 🔥 ส่ง reply กลาง (ไม่ต้องเขียนซ้ำทุก case)
+            # 🔥 ส่ง reply
             payload = {
                 "replyToken": reply_token,
                 "messages": messages_to_send
@@ -547,18 +573,20 @@ def webhook():
 
 
  
-#=================================end line OA ====================================
+
 #======================line OA สร้าง register ===============================
 #------------ Flask รับข้อมูลจาก HTML
 @app.route("/register", methods=["POST"])
 def register():
     try:
-        data = request.get_json()  # 🔥 เปลี่ยนจาก request.json
+        data = request.get_json()
 
         print("REGISTER:", data)
 
         user_id = data.get("userId")
         name = data.get("name")
+        home = data.get("home")
+        address = data.get("address")
         phone = data.get("phone")
 
         if not user_id:
@@ -566,6 +594,8 @@ def register():
 
         db.collection("users").document(user_id).set({
             "name": name,
+            "home": home,
+            "address": address,
             "phone": phone,
             "created_at": datetime.utcnow()
         })
@@ -580,7 +610,7 @@ def register():
 @app.route("/register.html")
 def register_page():
     return render_template("register.html")
-
+#=================================end line OA ====================================
 #-----------------------ดึงรูปจาก Firebase Storage----------------------------------------
 @app.route("/get_bookbank_images", methods=["GET"])
 def get_bookbank_images():

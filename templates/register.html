@@ -1,100 +1,149 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="UTF-8">
   <title>สมัครสมาชิก</title>
+
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 400px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    h2 {
+      text-align: center;
+      font-size: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin: 6px 0;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      background: #06c755;
+      color: white;
+      border: none;
+      border-radius: 8px;
+    }
+  </style>
 </head>
+
 <body>
 
 <h2>สมัครสมาชิก</h2>
 
-<input id="name" placeholder="ชื่อ"><br><br>
-<input id="phone" placeholder="เบอร์โทร"><br><br>
+<input id="name" placeholder="ชื่อติดต่อ">
+<input id="home" placeholder="ชื่อหมู่บ้าน">
+<input id="add" placeholder="ที่อยู่">
+<input id="phone" placeholder="เบอร์โทร">
 
 <button onclick="register()">สมัคร</button>
 
 <script>
-let userProfile = null
 
-async function main() {
+let API_URL = ""
+let LIFF_ID = ""
+let OFM = ""
+
+async function initApp() {
   try {
-    await liff.init({ liffId: "2009858553-w282abVT" })
+    // 🔥 อ่าน ofm จาก URL เช่น ?ofm=เชียงกลมออนไลน์
+    const urlParams = new URLSearchParams(window.location.search)
+    OFM = urlParams.get("ofm")
 
-    // 🔥 ต้อง login ก่อนทุกครั้ง
-    if (!liff.isLoggedIn()) {
-      liff.login()
+    if (!OFM) {
+      alert("ไม่พบ ofm")
       return
     }
 
-    // 🔥 เก็บ profile ไว้ใช้
-    userProfile = await liff.getProfile()
+    // 🔥 ดึง config จาก Flask
+    const res = await fetch(`/get_liff_config?ofm=${OFM}`)
+    const config = await res.json()
 
-    console.log("PROFILE:", userProfile)
+    console.log("CONFIG:", config)
+
+    API_URL = config.apiUrl
+    LIFF_ID = config.liffId
+
+    // 🔥 init LIFF
+    await liff.init({ liffId: LIFF_ID })
+
+    if (!liff.isLoggedIn()) {
+      liff.login()
+    }
 
   } catch (err) {
-    console.error("LIFF ERROR:", err)
+    console.error(err)
+    alert("โหลด config ไม่สำเร็จ")
   }
 }
 
-main()
+initApp()
 
 async function register() {
   try {
+    const profile = await liff.getProfile()
 
-    if (!userProfile) {
-      userProfile = await liff.getProfile()
-    }
+    const name = document.getElementById("name").value
+    const home = document.getElementById("home").value
+    const add = document.getElementById("add").value
+    const phone = document.getElementById("phone").value
 
-    const name = document.getElementById("name").value.trim()
-    const phone = document.getElementById("phone").value.trim()
-
-    if (!name || !phone) {
+    if (!name || !home || !add || !phone) {
       alert("กรุณากรอกข้อมูลให้ครบ")
       return
     }
 
     const data = {
-      userId: userProfile.userId,
+      userId: profile.userId,
       name: name,
-      phone: phone
+      home: home,
+      address: add,
+      phone: phone,
+      ofm: OFM
     }
 
-    console.log("SEND TO SERVER:", data)
+    console.log("SEND:", data)
 
-    const res = await fetch(
-      "https://server-ofm-419896870147.asia-southeast1.run.app/register",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(data)
-      }
-    )
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(data)
+    })
 
-    const text = await res.text()   // 🔥 กันกรณี JSON error
-    console.log("RAW RESPONSE:", text)
-
-    let json
-    try {
-      json = JSON.parse(text)
-    } catch (e) {
-      throw new Error("Server ไม่ได้ส่ง JSON กลับ")
+    if (!res.ok) {
+      throw new Error("HTTP " + res.status)
     }
+
+    const json = await res.json()
+
+    console.log("RESULT:", json)
 
     if (json.status === "ok") {
       alert("สมัครสำเร็จ ✅")
-      liff.closeWindow() // 🔥 ปิดหน้า LIFF
+      liff.closeWindow()
     } else {
       alert("สมัครไม่สำเร็จ ❌")
-      console.log(json)
     }
 
   } catch (err) {
-    console.error("REGISTER ERROR:", err)
-    alert("สมัครไม่สำเร็จ ❌ " + err.message)
+    console.error(err)
+    alert("สมัครไม่สำเร็จ ❌")
   }
 }
+
 </script>
 
 </body>
