@@ -83,15 +83,13 @@ async function initApp() {
 
     if (!OFM) {
       alert("❌ ไม่พบ ofm")
-      console.log("URL:", window.location.href)
-      console.log("CONTEXT:", liff.getContext())
       return
     }
 
     console.log("OFM:", OFM)
 
-    // ✅ โหลด config จาก Flask (dynamic แล้ว)
-    const res = await fetch(`${CONFIG_URL}/config/${OFM}`)
+    // ✅ ไม่ fix server
+    const res = await fetch(`/config/${OFM}`)
 
     if (!res.ok) {
       throw new Error("HTTP " + res.status)
@@ -106,20 +104,14 @@ async function initApp() {
       return
     }
 
-    LIFF_ID = config.liffId.trim()
-    API_URL = config.apiUrl.trim()
-    BASE_URL = config.urlserver.trim()
-
-    console.log("LIFF_ID:", LIFF_ID)
-    console.log("API_URL:", API_URL)
-    console.log("BASE_URL:", BASE_URL)
+    LIFF_ID = config.liffId
+    API_URL = config.apiUrl
 
     if (!LIFF_ID || !API_URL) {
       alert("❌ config ไม่ครบ")
       return
     }
 
-    // ✅ init LIFF
     await liff.init({ liffId: LIFF_ID })
 
     if (!liff.isLoggedIn()) {
