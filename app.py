@@ -454,6 +454,8 @@ def webhook():
         events = body_json.get("events", [])
 
         for event in events:
+
+            # 🔥 รับเฉพาะ text message
             if event.get("type") != "message" or event["message"]["type"] != "text":
                 continue
 
@@ -464,9 +466,10 @@ def webhook():
             command = parts[1].strip() if len(parts) > 1 else ""
             modename = parts[2].strip() if len(parts) > 2 else ""
             shopname = parts[3].strip() if len(parts) > 3 else ""
+
             reply_token = event.get("replyToken")
 
-            # 🔥 ดึง config
+            # 🔥 ดึง config จาก Firebase
             config = get_line_config(ofm_name)
             if not config:
                 print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
@@ -487,7 +490,9 @@ def webhook():
                 items = get_mod_product_direct(ofm_name)
 
                 if items:
-                    messages_to_send.append(build_flex_category(ofm_name, items))
+                    messages_to_send.append(
+                        build_flex_category(ofm_name, items)
+                    )
                 else:
                     messages_to_send.append({
                         "type": "text",
@@ -515,7 +520,9 @@ def webhook():
                 products = get_products(ofm_name, shopname, modename)
 
                 if products:
-                    messages_to_send.append(build_flex_products(products))
+                    messages_to_send.append(
+                        build_flex_products(products)
+                    )
                 else:
                     messages_to_send.append({
                         "type": "text",
@@ -533,6 +540,7 @@ def webhook():
                         "text": "❌ ยังไม่ได้ตั้งค่า LIFF"
                     })
                 else:
+                    # 🔥 ส่ง ofm ไปด้วย
                     liff_url = f"https://liff.line.me/{liff_id}?ofm={ofm_name}"
 
                     messages_to_send.append({
@@ -547,7 +555,7 @@ def webhook():
                     "text": "❗ คำสั่งไม่ถูกต้อง"
                 })
 
-            # 🔥 ส่ง reply
+            # 🔥 ส่ง reply กลาง
             payload = {
                 "replyToken": reply_token,
                 "messages": messages_to_send
@@ -569,11 +577,7 @@ def webhook():
     except Exception as e:
         print("❌ WEBHOOK ERROR:", str(e))
         traceback.print_exc()
-        return "ERROR", 500
-
-
-
- 
+        return "ERROR", 500 
 
 #======================line OA สร้าง register ===============================
 #------------ Flask รับข้อมูลจาก HTML
