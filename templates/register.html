@@ -54,17 +54,16 @@
 let API_URL = ""
 let LIFF_ID = ""
 let OFM = ""
-let BASE_URL = ""
 
-// 🔥 ใช้ domain ปัจจุบัน (ไม่ต้อง fix แล้ว)
-const CONFIG_URL = window.location.origin
+// 🔥 เปลี่ยนเป็น URL Cloud Run ของคุณ
+const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app"
 
 // ================= GET OFM =================
 function getOfmFromUrl() {
   const urlParams = new URLSearchParams(window.location.search)
   let ofm = urlParams.get("ofm")
 
-  // fallback กัน LIFF query หาย
+  // 🔥 fallback กรณี LIFF redirect แล้ว query หาย
   if (!ofm) {
     const context = liff.getContext()
     if (context && context.referrer && context.referrer.extra) {
@@ -88,13 +87,8 @@ async function initApp() {
 
     console.log("OFM:", OFM)
 
-    // ✅ ไม่ fix server
-    const res = await fetch(`/config/${OFM}`)
-
-    if (!res.ok) {
-      throw new Error("HTTP " + res.status)
-    }
-
+    // ✅ โหลด config จาก Flask
+    const res = await fetch(`${BASE_URL}/config/${OFM}`)
     const config = await res.json()
 
     console.log("CONFIG:", config)
@@ -112,6 +106,7 @@ async function initApp() {
       return
     }
 
+    // ✅ init LIFF
     await liff.init({ liffId: LIFF_ID })
 
     if (!liff.isLoggedIn()) {
