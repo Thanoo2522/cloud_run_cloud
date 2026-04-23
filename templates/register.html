@@ -54,16 +54,18 @@
 let API_URL = ""
 let LIFF_ID = ""
 let OFM = ""
+let BASE_URL = ""
+let CONFIG_URL = ""
 
-// 🔥 เปลี่ยนเป็น URL Cloud Run ของคุณ
-const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app"
+// 🔥 ใช้ bootstrap จาก Flask (ต้องอยู่ domain เดียวกับ HTML)
+const BOOTSTRAP_URL = "/bootstrap"
 
 // ================= GET OFM =================
 function getOfmFromUrl() {
-  const urlParams = new URLSearchParams(window.location.search)
-  let ofm = urlParams.get("ofm")
+  const params = new URLSearchParams(window.location.search)
+  let ofm = params.get("ofm")
 
-  // 🔥 fallback กรณี LIFF redirect แล้ว query หาย
+  // 🔥 fallback กัน LIFF query หาย
   if (!ofm) {
     const context = liff.getContext()
     if (context && context.referrer && context.referrer.extra) {
@@ -78,38 +80,79 @@ function getOfmFromUrl() {
 async function initApp() {
   try {
 
-    // 🔥 init ก่อน
-    await liff.init({ liffId: "2009858553-w282abVT" })
+    // ✅ STEP 1: ขอค่าเริ่มต้นจาก Flask
+    const bootRes = await fetch(BOOTSTRAP_URL)
+    const boot = await bootRes.json()
+
+    console.log("BOOT:", boot)
+
+    if (boot.status !== "ok") {
+      alert("❌ bootstrap error")
+      return
+    }
+
+    const DEFAULT_LIFF_ID = boot.liffId
+    CONFIG_URL = boot.configUrl
+
+    if (!DEFAULT_LIFF_ID || !CONFIG_URL) {
+      alert("❌ bootstrap ไม่ครบ")
+      return
+    }
+
+    // ✅ STEP 2: init LIFF
+    await liff.init({ liffId: DEFAULT_LIFF_ID })
 
     if (!liff.isLoggedIn()) {
       liff.login()
       return
     }
 
-    // 🔥 ค่อยเอา ofm หลัง init
+    // ✅ STEP 3: อ่าน ofm
     OFM = getOfmFromUrl()
 
     if (!OFM) {
       alert("❌ ไม่พบ ofm")
+      console.log("URL:", window.location.href)
+      console.log("CONTEXT:", liff.getContext())
       return
     }
 
     console.log("OFM:", OFM)
 
-    // โหลด config ต่อ...
-    const res = await fetch(`${BASE_URL}/config/${OFM}`)
+    // ✅ STEP 4: โหลด config ของแต่ละ OFM
+    const res = await fetch(`${CONFIG_URL}/${OFM}`)
     const config = await res.json()
+
+    console.log("CONFIG:", config)
 
     if (config.status !== "ok") {
       alert("❌ โหลด config ไม่สำเร็จ")
       return
     }
 
+    BASE_URL = config.urlserver
     LIFF_ID = config.liffId
     API_URL = config.apiUrl
 
+    console.log("BASE_URL:", BASE_URL)
+    console.log("LIFF_ID:", LIFF_ID)
+
+    if (!BASE_URL || !LIFF_ID || !API_URL) {
+      alert("❌ config ไม่ครบ")
+      return
+    }
+
+    // 🔥 re-init ถ้า LIFF_ID เปลี่ยน
+    if (LIFF_ID !== DEFAULT_LIFF_ID) {
+      console.log("🔄 re-init LIFF")
+      await liff.init({ liffId: LIFF_ID })
+    }
+
+    console.log("✅ READY")
+
   } catch (err) {
-    console.error(err)
+    console.error("INIT ERROR:", err)
+    alert("❌ โหลดระบบไม่สำเร็จ")
   }
 }
 

@@ -157,6 +157,12 @@ def get_line_config(ofm):
             return None
 
         data = doc.to_dict()
+        print("CONFIG DATA:", data)
+
+        # 🔥 validate
+        if not data.get("liffId") or not data.get("apiUrl") or not data.get("urlserver"):
+            print(f"❌ config ไม่ครบ: {ofm}")
+            return None
 
         return {
             "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
@@ -171,7 +177,7 @@ def get_line_config(ofm):
         return None
 
 
-# ================= API: GET CONFIG =================
+# ================= API =================
 @app.route("/config/<ofm>", methods=["GET"])
 def get_config_api(ofm):
     config = get_line_config(ofm)
@@ -179,15 +185,15 @@ def get_config_api(ofm):
     if not config:
         return jsonify({
             "status": "error",
-            "message": "ไม่พบ config"
+            "message": "ไม่พบหรือ config ไม่ครบ"
         })
 
     return jsonify({
         "status": "ok",
-        "liffId": config.get("liffId"),
-        "apiUrl": config.get("apiUrl")
+        "liffId": config["liffId"],
+        "apiUrl": config["apiUrl"],
+        "urlserver": config["urlserver"]
     })
-
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
