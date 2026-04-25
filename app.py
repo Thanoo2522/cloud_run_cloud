@@ -270,22 +270,35 @@ def build_flex_category(ofm_name,items):
 #============== commamd "order" ======================
 def handle_order_command(ofm_name, user_id, parts):
     try:
-        # ดึงข้อมูลจาก parts ตามลำดับใหม่ที่สั้นลง (ofm|order|name|price)
-        productname  = parts[2].strip() if len(parts) > 2 else "ไม่มีชื่อสินค้า"
-        priceproduct = parts[3].strip() if len(parts) > 3 else "0"
-        
-        # ส่วนที่ตัดออกจากข้อความแชท ให้ตั้งค่าเริ่มต้นไว้ หรือดึงจาก DB ในอนาคต
-        dataproduct  = "" 
-        image_url    = "" 
-        partnershop  = "ร้านค้าทั่วไป"
+        # 1. รับชื่อสินค้าและราคาจากข้อความสั้น (ofm|order|name|price)
+        product_name_from_msg = parts[2].strip() if len(parts) > 2 else ""
+        price_from_msg = parts[3].strip() if len(parts) > 3 else "0"
 
+        # เตรียมตัวแปรสำหรับข้อมูลที่จะดึงจาก DB
+        image_url = ""
+        dataproduct = ""
+        partnershop = "ร้านค้าทั่วไป"
+
+        # 🔍 2. ดึงข้อมูลสินค้าจาก DB อัตโนมัติ (Query ด้วยชื่อสินค้า)
+        # สมมติว่าเก็บสินค้าไว้ใน path: {ofm_name}/{ofm_name}/products
+        product_query = db.collection(ofm_name).document(ofm_name)\
+                          .collection("products")\
+                          .where("productname", "==", product_name_from_msg)\
+                          .limit(1).get()
+
+        if product_query:
+            p_data = product_query[0].to_dict()
+            image_url = p_data.get("image_url", "")
+            dataproduct = p_data.get("dataproduct", "")
+            partnershop = p_data.get("Partnershop", "ร้านค้าทั่วไป")
+            # ใช้ราคาจาก DB ถ้าต้องการความแม่นยำสูงกว่า
+            price_from_msg = p_data.get("priceproduct", price_from_msg)
+
+        # 3. เตรียมบันทึกออเดอร์
         customer_ref = db.collection(ofm_name).document(ofm_name).collection("customers").document(user_id)
-        
-        # 1. สร้าง ID ออเดอร์ใหม่จาก Timestamp
         activeOrderId = str(int(time.time() * 1000))
         order_ref = customer_ref.collection("orders").document(activeOrderId)
         
-        # 🛡️ ใช้ Batch เพื่อเขียนข้อมูลลงหลายจุดพร้อมกัน
         batch = db.batch()
         
         # สร้างหัวเอกสาร Order
@@ -296,16 +309,15 @@ def handle_order_command(ofm_name, user_id, parts):
             "orderId": activeOrderId
         })
         
-        # อัปเดตสถานะตะกร้าปัจจุบันที่ตัวลูกค้า
         batch.update(customer_ref, {"activeOrderId": activeOrderId})
         
-        # 2. เพิ่มสินค้าลงใน Sub-collection 'items'
+        # 4. บันทึกสินค้าพร้อม image_url ที่ดึงมาจาก DB
         item_ref = order_ref.collection("items").document()
         batch.set(item_ref, {
-            "productname": productname,
+            "productname": product_name_from_msg,
             "dataproduct": dataproduct,
-            "priceproduct": priceproduct,
-            "image_url": image_url,
+            "priceproduct": price_from_msg,
+            "image_url": image_url, # ✅ ได้รูปมาแล้ว
             "Partnershop": partnershop,
             "numberproduct": 1,
             "status": "draft",
@@ -316,12 +328,11 @@ def handle_order_command(ofm_name, user_id, parts):
         
         return {
             "type": "text",
-            "text": f"🛒 เพิ่มลงตะกร้าสำเร็จ!\n🔹 {productname}\n💰 ราคา {priceproduct} บาท\n📦 เลขออเดอร์: {activeOrderId}"
+            "text": f"🛒 เพิ่มลงตะกร้าพร้อมรูปภาพสำเร็จ!\n🔹 {product_name_from_msg}\n📦 เลขออเดอร์: {activeOrderId}"
         }
     except Exception as e:
         print(f"❌ handle_order_command Error: {e}")
-        return {"type": "text", "text": "❌ บันทึกออเดอร์ไม่สำเร็จ กรุณาลองใหม่"}
-
+        return {"type": "text", "text": "❌ เกิดข้อผิดพลาดในการดึงข้อมูลสินค้า"}
 
 # ===============================================================
 # 3. ฟังก์ชันดึง "Partner" (Logic เดียวกับ get_mod_product_direct)
@@ -402,7 +413,7 @@ def get_products(ofm, shopname, modename):
                 "priceproduct": data.get("priceproduct")
             })
 
-        print(f"🛒 พบ {len(items)} สินค้าใน {shopname}")
+       # print(f"🛒 พบ {len(items)} สินค้าใน {shopname}")
         return items
 
     except Exception as e:
