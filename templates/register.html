@@ -8,36 +8,49 @@
     <script src="https://line-scdn.net"></script>
     
     <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f4f7f6; }
-        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #333; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; background-color: #00b900; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
-        button:disabled { background-color: #ccc; }
-        #status-msg { text-align: center; margin-bottom: 15px; font-weight: bold; }
-        .error { color: red; }
-        .success { color: green; }
+        body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; padding: 20px; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 450px; margin: auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #00b900; margin-top: 0; }
+        .status-box { text-align: center; padding: 10px; margin-bottom: 20px; border-radius: 8px; font-size: 14px; font-weight: bold; }
+        .loading { background-color: #e3f2fd; color: #1976d2; }
+        .error { background-color: #ffebee; color: #c62828; }
+        .success { background-color: #e8f5e9; color: #2e7d32; }
+        
+        .form-group { margin-bottom: 18px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; font-size: 14px; }
+        input, textarea { 
+            width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; 
+            box-sizing: border-box; font-size: 16px; transition: border 0.3s;
+        }
+        input:focus { border-color: #00b900; outline: none; }
+        
+        button { 
+            width: 100%; padding: 15px; background-color: #00b900; color: white; 
+            border: none; border-radius: 8px; font-size: 18px; font-weight: bold; 
+            cursor: pointer; transition: background 0.3s; margin-top: 10px;
+        }
+        button:hover { background-color: #009900; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .footer-text { text-align: center; font-size: 12px; color: #888; margin-top: 20px; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <h2>สมัครสมาชิก</h2>
-    <div id="status-msg">กำลังโหลดระบบ...</div>
+    <div id="status-msg" class="status-box loading">กำลังโหลดระบบ...</div>
 
     <div id="register-form" style="display: none;">
         <input type="hidden" id="userId">
         
         <div class="form-group">
             <label>ชื่อ-นามสกุล</label>
-            <input type="text" id="name" placeholder="ระบุชื่อของคุณ">
+            <input type="text" id="name" placeholder="ระบุชื่อและนามสกุล">
         </div>
 
         <div class="form-group">
             <label>เบอร์โทรศัพท์</label>
-            <input type="tel" id="phone" placeholder="08xxxxxxxx">
+            <input type="tel" id="phone" placeholder="เช่น 0812345678">
         </div>
 
         <div class="form-group">
@@ -46,49 +59,67 @@
         </div>
 
         <div class="form-group">
-            <label>ที่อยู่โดยละเอียด</label>
-            <textarea id="address" rows="3" placeholder="ระบุตำบล อำเภอ จังหวัด"></textarea>
+            <label>ที่อยู่โดยละเอียด (ตำบล/อำเภอ/จังหวัด)</label>
+            <textarea id="address" rows="3" placeholder="ระบุที่อยู่ของคุณ"></textarea>
         </div>
 
-        <button id="btn-submit" onclick="submitForm()">ยืนยันข้อมูล</button>
+        <button id="btn-submit" onclick="submitForm()">ยืนยันสมัครสมาชิก</button>
+        <p class="footer-text">ข้อมูลของคุณจะถูกเก็บเป็นความลับเพื่อใช้ในระบบสมาชิกเท่านั้น</p>
     </div>
 </div>
 
 <script>
     // ---------------------------------------------------------
-    // CONFIGURATION
+    // 1. CONFIGURATION: ระบุ URL ของ Flask บน Cloud Run
     // ---------------------------------------------------------
     const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app";
     let OFM_NAME = "";
 
     // ---------------------------------------------------------
-    // INITIALIZE LIFF & CONFIG
+    // 2. HELPER: ดึงค่า OFM จาก URL หรือ Session
+    // ---------------------------------------------------------
+    function getOfmName() {
+        const urlParams = new URLSearchParams(window.location.search);
+        let ofm = urlParams.get('ofm');
+
+        if (ofm) {
+            // ถ้าเจอใน URL ให้เก็บไว้ใน Session กันหายตอน redirect
+            sessionStorage.setItem('cached_ofm', ofm);
+            return ofm;
+        }
+        // ถ้าไม่เจอใน URL ให้ไปดึงที่เคยเก็บไว้
+        return sessionStorage.getItem('cached_ofm');
+    }
+
+    // ---------------------------------------------------------
+    // 3. INITIALIZE APP
     // ---------------------------------------------------------
     async function initApp() {
         const statusEl = document.getElementById("status-msg");
         
         try {
-            // 1. ดึงค่า ofm จาก URL (?ofm=เชียงกลมออนไลน์)
-            const urlParams = new URLSearchParams(window.location.search);
-            OFM_NAME = urlParams.get('ofm');
+            // ดึงชื่อร้าน
+            OFM_NAME = getOfmName();
 
             if (!OFM_NAME) {
-                statusEl.innerText = "❌ ไม่พบรหัสร้านค้า (ofm)";
-                statusEl.className = "error";
+                showError("❌ ไม่พบรหัสร้านค้า (ofm) กรุณาเข้าผ่าน Line OA ของร้าน");
                 return;
             }
 
-            // 2. ดึง Config จาก Flask API
+            console.log("Fetching config for:", OFM_NAME);
+
+            // ดึง Config จาก Flask
             const configRes = await fetch(`${BASE_URL}/config/${encodeURIComponent(OFM_NAME)}`);
+            if (!configRes.ok) throw new Error("ไม่สามารถเชื่อมต่อ Server ได้");
+            
             const config = await configRes.json();
 
             if (config.status !== "ok") {
-                statusEl.innerText = "❌ โหลด Config ไม่สำเร็จ: " + (config.message || "ไม่ทราบสาเหตุ");
-                statusEl.className = "error";
+                showError("❌ ไม่พบข้อมูลการตั้งค่าของร้าน: " + OFM_NAME);
                 return;
             }
 
-            // 3. เริ่มต้น LIFF SDK
+            // เริ่มต้น LIFF
             await liff.init({ liffId: config.liffId });
 
             if (!liff.isLoggedIn()) {
@@ -97,21 +128,26 @@
                 const profile = await liff.getProfile();
                 document.getElementById("userId").value = profile.userId;
                 
-                // แสดงฟอร์ม และเปลี่ยนสถานะ
+                // โหลดสำเร็จ - แสดงฟอร์ม
                 document.getElementById("register-form").style.display = "block";
-                statusEl.innerText = "✅ เชื่อมต่อสำเร็จ";
-                statusEl.className = "success";
+                statusEl.innerText = "✅ พร้อมลงทะเบียน (" + OFM_NAME + ")";
+                statusEl.className = "status-box success";
             }
 
         } catch (err) {
-            console.error(err);
-            statusEl.innerText = "❌ เกิดข้อผิดพลาด: " + err.message;
-            statusEl.className = "error";
+            console.error("Init Error:", err);
+            showError("❌ เกิดข้อผิดพลาด: " + err.message);
         }
     }
 
+    function showError(msg) {
+        const statusEl = document.getElementById("status-msg");
+        statusEl.innerText = msg;
+        statusEl.className = "status-box error";
+    }
+
     // ---------------------------------------------------------
-    // SUBMIT FORM
+    // 4. SUBMIT FORM
     // ---------------------------------------------------------
     async function submitForm() {
         const btn = document.getElementById("btn-submit");
@@ -120,20 +156,19 @@
         const data = {
             ofm: OFM_NAME,
             userId: document.getElementById("userId").value,
-            name: document.getElementById("name").value,
-            phone: document.getElementById("phone").value,
-            home: document.getElementById("home").value,
-            address: document.getElementById("address").value
+            name: document.getElementById("name").value.trim(),
+            phone: document.getElementById("phone").value.trim(),
+            home: document.getElementById("home").value.trim(),
+            address: document.getElementById("address").value.trim()
         };
 
-        // Validation เบื้องต้น
         if (!data.name || !data.phone) {
             alert("กรุณากรอกชื่อและเบอร์โทรศัพท์");
             return;
         }
 
         btn.disabled = true;
-        statusEl.innerText = "กำลังบันทึกข้อมูล...";
+        statusEl.innerText = "正在บันทึกข้อมูล...";
 
         try {
             const response = await fetch(`${BASE_URL}/register`, {
@@ -145,19 +180,17 @@
             const result = await response.json();
 
             if (result.status === "ok") {
-                alert("ลงทะเบียนสมาชิกเรียบร้อยแล้ว");
-                liff.closeWindow(); // ปิดหน้าต่าง LIFF
+                alert("ยินดีด้วย! ลงทะเบียนสมาชิกสำเร็จ");
+                liff.closeWindow(); 
             } else {
                 throw new Error(result.message || "บันทึกไม่สำเร็จ");
             }
         } catch (err) {
-            alert("เกิดข้อผิดพลาด: " + err.message);
+            alert("เกิดข้อผิดพลาดในการส่งข้อมูล: " + err.message);
             btn.disabled = false;
-            statusEl.innerText = "❌ ลงทะเบียนไม่สำเร็จ";
         }
     }
 
-    // เริ่มทำงานเมื่อโหลดหน้า
     window.onload = initApp;
 </script>
 
