@@ -34,11 +34,16 @@ const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app"
 function getOfmFromUrl() {
   const urlParams = new URLSearchParams(window.location.search)
   let ofm = urlParams.get("ofm")
-  if (ofm) {
-    sessionStorage.setItem("current_ofm", ofm)
-    return ofm
+
+  // 🔥 fallback กรณี LIFF redirect แล้ว query หาย
+  if (!ofm) {
+    const context = liff.getContext()
+    if (context && context.referrer && context.referrer.extra) {
+      ofm = context.referrer.extra.ofm
+    }
   }
-  return sessionStorage.getItem("current_ofm")
+
+  return ofm
 }
 
 async function initApp() {
