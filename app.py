@@ -146,6 +146,10 @@ def get_mod_product_direct(ofm):
 # ===============================================================
 def get_line_config(ofm):
     try:
+        # ตัดช่องว่างเผื่อมีติดมา
+        ofm = ofm.strip() 
+        
+        # ตามรูป: Collection("เชียงกลมออนไลน์") -> Document("เชียงกลมออนไลน์") -> LineOA -> channel
         doc_ref = db.collection(ofm) \
                     .document(ofm) \
                     .collection("LineOA") \
@@ -154,22 +158,19 @@ def get_line_config(ofm):
         doc = doc_ref.get()
 
         if not doc.exists:
-            print(f"❌ ไม่พบ config ของ OFM: {ofm}")
+            print(f"❌ ไม่พบเอกสารในเส้นทาง: {ofm}/{ofm}/LineOA/channel")
             return None
 
         data = doc.to_dict()
-
         return {
             "access_token": data.get("LINE_CHANNEL_ACCESS_TOKEN"),
             "secret": data.get("LINE_CHANNEL_SECRET"),
-             "liffId": data.get("liffId"),
+            "liffId": data.get("liffId"),
             "apiUrl": data.get("apiUrl")
         }
-
     except Exception as e:
         print("ERROR get_line_config:", str(e))
         return None
-
 
 # ================= API: GET CONFIG =================
 @app.route("/config/<ofm>", methods=["GET"])
