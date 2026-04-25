@@ -267,6 +267,59 @@ def build_flex_category(ofm_name,items):
         }
     }
 
+#============== commamd "order" ======================
+def handle_order_command(ofm_name, user_id, parts):
+    try:
+        # ดึงข้อมูลจาก parts (index 2 เป็นต้นไป)
+        productname  = parts[2].strip() if len(parts) > 2 else "ไม่มีชื่อสินค้า"
+        dataproduct  = parts[3].strip() if len(parts) > 3 else ""
+        priceproduct = parts[4].strip() if len(parts) > 4 else "0"
+        image_url    = parts[5].strip() if len(parts) > 5 else ""
+        partnershop  = parts[6].strip() if len(parts) > 6 else ""
+
+        customer_ref = db.collection(ofm_name).document(ofm_name).collection("customers").document(user_id)
+        
+        # 1. จัดการ activeOrderId และเอกสาร Order หลัก
+        activeOrderId = str(int(time.time() * 1000))
+        order_ref = customer_ref.collection("orders").document(activeOrderId)
+        
+        # ใช้ batch เพื่อให้เขียนข้อมูลหลายจุดพร้อมกัน (Atomic)
+        batch = db.batch()
+        
+        # สร้าง Order หลัก
+        batch.set(order_ref, {
+            "Preorder": 1,
+            "createdAt": datetime.utcnow(),
+            "status": "draft",
+            "orderId": activeOrderId
+        })
+        
+        # อัปเดต activeOrderId ที่ตัวลูกค้า
+        batch.update(customer_ref, {"activeOrderId": activeOrderId})
+        
+        # 2. เพิ่มสินค้าลงใน sub-collection 'items'
+        item_ref = order_ref.collection("items").document()
+        batch.set(item_ref, {
+            "productname": productname,
+            "dataproduct": dataproduct,
+            "priceproduct": priceproduct,
+            "image_url": image_url,
+            "Partnershop": partnershop,
+            "numberproduct": 1,
+            "status": "draft",
+            "created_at": datetime.utcnow()
+        })
+        
+        batch.commit()
+        
+        return {
+            "type": "text",
+            "text": f"🛒 เพิ่มสินค้าลงตะกร้าแล้ว!\n🔹 {productname}\n💰 ราคา: {priceproduct} บาท\n📦 เลขที่สั่งซื้อ: {activeOrderId}"
+        }
+    except Exception as e:
+        print(f"❌ handle_order_command Error: {e}")
+        return {"type": "text", "text": "❌ เกิดข้อผิดพลาดในการบันทึกออเดอร์"}
+
 # ===============================================================
 # 3. ฟังก์ชันดึง "Partner" (Logic เดียวกับ get_mod_product_direct)
 # ===============================================================
@@ -524,21 +577,32 @@ def webhook():
 
             # ✅ 4. ส่วนของคำสั่งเดิม (หมวดสินค้า, mode, partner)
             messages_to_send = []
-            if command in ["เลือกหมวดสินค้า", "test"]:
+            
+            if command == "order":
+                # เรียกฟังก์ชันจัดการ Order ที่เราแยกไว้
+                messages_to_send.append(handle_order_command(ofm_name, user_id, parts))
+
+            elif command in ["เลือกหมวดสินค้า", "test"]:
                 items = get_mod_product_direct(ofm_name)
                 messages_to_send.append(build_flex_category(ofm_name, items) if items else {"type": "text", "text": "ไม่พบหมวดหมู่"})
+            
             elif command == "mode":
                 partners = get_partners_direct(ofm_name)
                 messages_to_send.append(build_flex_partners(ofm_name, modename, partners) if partners else {"type": "text", "text": "ไม่พบร้านค้า"})
+            
             elif command == "partner":
                 products = get_products(ofm_name, shopname, modename)
-                messages_to_send.append(build_flex_products(ofm_name,products) if products else {"type": "text", "text": "ไม่พบสินค้า"})
+                messages_to_send.append(build_flex_products(ofm_name, products) if products else {"type": "text", "text": "ไม่พบสินค้า"})
+            
             else:
+                # กรณีพิมพ์อย่างอื่นมาที่ไม่ใช่ command ที่กำหนด
                 messages_to_send.append({"type": "text", "text": "❗ คำสั่งไม่ถูกต้อง"})
 
             # 5. ส่งข้อความตอบกลับ
-            requests.post("https://api.line.me/v2/bot/message/reply", headers=headers, 
-                          json={"replyToken": reply_token, "messages": messages_to_send})
+            if messages_to_send:
+                requests.post("https://api.line.me/v2/bot/message/reply", headers=headers, 
+                              json={"replyToken": reply_token, "messages": messages_to_send})
+
 
         return "OK", 200
     except Exception as e:
