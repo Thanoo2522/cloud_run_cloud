@@ -174,23 +174,20 @@ def get_line_config(ofm):
 # ================= API: GET CONFIG =================
 @app.route("/config/<ofm>", methods=["GET"])
 def get_config_api(ofm):
-    # ถอดรหัสกรณี URL ส่งมาเป็น %... (ภาษาไทย)
-    decoded_ofm = urllib.parse.unquote(ofm)
-    print(f"🔍 Fetching config for: {decoded_ofm}")
-    
-    config = get_line_config(decoded_ofm)
+    config = get_line_config(ofm)
 
     if not config:
         return jsonify({
             "status": "error",
-            "message": f"ไม่พบ config ของร้าน {decoded_ofm}"
-        }), 404
+            "message": "ไม่พบ config"
+        })
 
     return jsonify({
-        "status": "ok",
-        "liffId": config.get("liffId"),
-        "apiUrl": config.get("apiUrl"),
-    })
+    "status": "ok",
+    "liffId": config.get("liffId"),
+    "apiUrl": config.get("apiUrl"),
+     })
+
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
@@ -594,16 +591,16 @@ def webhook():
 def register():
     try:
         data = request.get_json()
-        print("📥 Incoming Data:", data)
+
+        print("📥 DATA:", data)
 
         ofm = data.get("ofm")
         userId = data.get("userId")
 
         if not ofm or not userId:
-            return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ (Missing ofm or userId)"}), 400
+            return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ"})
 
-        # บันทึกลง Firebase Firestore
-        # ตรวจสอบ Path ให้ตรงกับที่คุณออกแบบไว้
+        # 🔥 บันทึกลง Firebase
         db.collection(ofm) \
           .document(ofm) \
           .collection("customers") \
@@ -613,21 +610,20 @@ def register():
               "home": data.get("home"),
               "address": data.get("address"),
               "phone": data.get("phone"),
-              "userId": userId,
-              "registeredAt": datetime.now() # เพิ่มเวลาที่สมัคร
+              "userId": userId
           })
 
         return jsonify({"status": "ok"})
 
     except Exception as e:
         print("❌ REGISTER ERROR:", str(e))
-        traceback.print_exc()
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error"})
 
 #----------เปิดหน้า HTML ------------------------
 @app.route("/register.html")
 def register_page():
     return render_template("register.html")
+
 #=================================end line OA ====================================
 #-----------------------ดึงรูปจาก Firebase Storage----------------------------------------
 @app.route("/get_bookbank_images", methods=["GET"])
