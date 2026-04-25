@@ -11,7 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import time
 from datetime import datetime
-from flask_cors import CORS
+#from flask_cors import CORS
 import urllib.parse # สำหรับถอดรหัสภาษาไทย
  
  
@@ -24,7 +24,7 @@ import urllib.parse # สำหรับถอดรหัสภาษาไท�
 # Flask
 # ------------------------------------
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+#CORS(app, resources={r"/*": {"origins": "*"}})
 # ------------------------------------
 # Firebase Config
 # ------------------------------------
