@@ -601,7 +601,7 @@ def webhook():
         return "ERROR", 500 
 
 #======================line OA สร้าง register ===============================
-#------------ Flask รับข้อมูลจาก HTML
+#------------ Flask รับข้อมูลจาก HTML แล้วบันทึกลง firebase ------------------
 @app.route("/register", methods=["POST"])
 def register():
     try:
@@ -625,7 +625,8 @@ def register():
               "home": data.get("home"),
               "address": data.get("address"),
               "phone": data.get("phone"),
-              "userId": userId
+              "userId": userId,
+              "activeOrderId": ""  # สำหรับรอรับ orderId ในอนาคต
           })
 
         return jsonify({"status": "ok"})
