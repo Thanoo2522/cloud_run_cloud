@@ -611,7 +611,7 @@ def register():
 
         ofm = data.get("ofm")
         userId = data.get("userId")
-
+        name = data.get("name")
         if not ofm or not userId:
             return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ"})
 
@@ -619,7 +619,7 @@ def register():
         db.collection(ofm) \
           .document(ofm) \
           .collection("customers") \
-          .document(userId) \
+          .document(name) \
           .set({
               "name": data.get("name"),
               "home": data.get("home"),
