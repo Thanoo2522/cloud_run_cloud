@@ -1,181 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>สมัครสมาชิก</title>
-
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
-  <style>
-    body {
-      font-family: Arial;
-      max-width: 400px;
-      margin: auto;
-      padding: 20px;
-    }
-
-    h2 {
-      text-align: center;
-      font-size: 20px;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      margin: 6px 0;
-      font-size: 14px;
-    }
-
-    button {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      background: #06c755;
-      color: white;
-      border: none;
-      border-radius: 8px;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ลงทะเบียนสมาชิก</title>
+    <!-- LINE LIFF SDK -->
+    <script src="https://line-scdn.net"></script>
+    
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f7f6; }
+        .container { max-width: 400px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background-color: #00b900; color: white; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; }
+        button:disabled { background-color: #ccc; }
+        #status-msg { text-align: center; margin-bottom: 15px; font-weight: bold; }
+        .error { color: red; }
+        .success { color: green; }
+    </style>
 </head>
-
 <body>
 
-<h2>สมัครสมาชิก</h2>
+<div class="container">
+    <h2>สมัครสมาชิก</h2>
+    <div id="status-msg">กำลังโหลดระบบ...</div>
 
-<input id="name" placeholder="ชื่อติดต่อ">
-<input id="home" placeholder="ชื่อหมู่บ้าน">
-<input id="address" placeholder="ที่อยู่">
-<input id="phone" placeholder="เบอร์โทร">
+    <div id="register-form" style="display: none;">
+        <input type="hidden" id="userId">
+        
+        <div class="form-group">
+            <label>ชื่อ-นามสกุล</label>
+            <input type="text" id="name" placeholder="ระบุชื่อของคุณ">
+        </div>
 
-<button onclick="register()">สมัคร</button>
+        <div class="form-group">
+            <label>เบอร์โทรศัพท์</label>
+            <input type="tel" id="phone" placeholder="08xxxxxxxx">
+        </div>
+
+        <div class="form-group">
+            <label>บ้านเลขที่/หมู่</label>
+            <input type="text" id="home" placeholder="เช่น 123/4 ม.5">
+        </div>
+
+        <div class="form-group">
+            <label>ที่อยู่โดยละเอียด</label>
+            <textarea id="address" rows="3" placeholder="ระบุตำบล อำเภอ จังหวัด"></textarea>
+        </div>
+
+        <button id="btn-submit" onclick="submitForm()">ยืนยันข้อมูล</button>
+    </div>
+</div>
 
 <script>
+    // ---------------------------------------------------------
+    // CONFIGURATION
+    // ---------------------------------------------------------
+    const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app";
+    let OFM_NAME = "";
 
-let API_URL = ""
-let LIFF_ID = ""
-let OFM = ""
+    // ---------------------------------------------------------
+    // INITIALIZE LIFF & CONFIG
+    // ---------------------------------------------------------
+    async function initApp() {
+        const statusEl = document.getElementById("status-msg");
+        
+        try {
+            // 1. ดึงค่า ofm จาก URL (?ofm=เชียงกลมออนไลน์)
+            const urlParams = new URLSearchParams(window.location.search);
+            OFM_NAME = urlParams.get('ofm');
 
-// 🔥 เปลี่ยนเป็น URL Cloud Run ของคุณ
-const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app"
+            if (!OFM_NAME) {
+                statusEl.innerText = "❌ ไม่พบรหัสร้านค้า (ofm)";
+                statusEl.className = "error";
+                return;
+            }
 
-// ================= GET OFM =================
-function getOfmFromUrl() {
-  const urlParams = new URLSearchParams(window.location.search)
-  let ofm = urlParams.get("ofm")
+            // 2. ดึง Config จาก Flask API
+            const configRes = await fetch(`${BASE_URL}/config/${encodeURIComponent(OFM_NAME)}`);
+            const config = await configRes.json();
 
-  // 🔥 fallback กรณี LIFF redirect แล้ว query หาย
-  if (!ofm) {
-    const context = liff.getContext()
-    if (context && context.referrer && context.referrer.extra) {
-      ofm = context.referrer.extra.ofm
-    }
-  }
+            if (config.status !== "ok") {
+                statusEl.innerText = "❌ โหลด Config ไม่สำเร็จ: " + (config.message || "ไม่ทราบสาเหตุ");
+                statusEl.className = "error";
+                return;
+            }
 
-  return ofm
-}
+            // 3. เริ่มต้น LIFF SDK
+            await liff.init({ liffId: config.liffId });
 
-// ================= INIT =================
-async function initApp() {
-  try {
+            if (!liff.isLoggedIn()) {
+                liff.login();
+            } else {
+                const profile = await liff.getProfile();
+                document.getElementById("userId").value = profile.userId;
+                
+                // แสดงฟอร์ม และเปลี่ยนสถานะ
+                document.getElementById("register-form").style.display = "block";
+                statusEl.innerText = "✅ เชื่อมต่อสำเร็จ";
+                statusEl.className = "success";
+            }
 
-    OFM = getOfmFromUrl()
-
-    if (!OFM) {
-      alert("❌ ไม่พบ ofm")
-      return
-    }
-
-    console.log("OFM:", OFM)
-
-    // ✅ โหลด config จาก Flask
-    const res = await fetch(`${BASE_URL}/config/${OFM}`)
-    const config = await res.json()
-
-    console.log("CONFIG:", config)
-
-    if (!config.liffId || !config.apiUrl) {
-      alert("❌ โหลด config ไม่สำเร็จ")
-      return
-    }
-
-    API_URL = config.apiUrl.trim()
-    LIFF_ID = config.liffId.trim()
-
-    if (!LIFF_ID || !API_URL) {
-      alert("❌ config ไม่ครบ")
-      return
-    }
-
-    // ✅ init LIFF
-    await liff.init({ liffId: LIFF_ID })
-
-    if (!liff.isLoggedIn()) {
-      liff.login()
-      return
+        } catch (err) {
+            console.error(err);
+            statusEl.innerText = "❌ เกิดข้อผิดพลาด: " + err.message;
+            statusEl.className = "error";
+        }
     }
 
-    console.log("✅ LIFF READY")
+    // ---------------------------------------------------------
+    // SUBMIT FORM
+    // ---------------------------------------------------------
+    async function submitForm() {
+        const btn = document.getElementById("btn-submit");
+        const statusEl = document.getElementById("status-msg");
 
-  } catch (err) {
-    console.error("INIT ERROR:", err)
-    alert("โหลด config ไม่สำเร็จ")
-  }
-}
+        const data = {
+            ofm: OFM_NAME,
+            userId: document.getElementById("userId").value,
+            name: document.getElementById("name").value,
+            phone: document.getElementById("phone").value,
+            home: document.getElementById("home").value,
+            address: document.getElementById("address").value
+        };
 
-initApp()
+        // Validation เบื้องต้น
+        if (!data.name || !data.phone) {
+            alert("กรุณากรอกชื่อและเบอร์โทรศัพท์");
+            return;
+        }
 
-// ================= REGISTER =================
-async function register() {
-  try {
+        btn.disabled = true;
+        statusEl.innerText = "กำลังบันทึกข้อมูล...";
 
-    const profile = await liff.getProfile()
+        try {
+            const response = await fetch(`${BASE_URL}/register`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
 
-    const name = document.getElementById("name").value
-    const home = document.getElementById("home").value
-    const address = document.getElementById("address").value
-    const phone = document.getElementById("phone").value
+            const result = await response.json();
 
-    if (!name || !home || !address || !phone) {
-      alert("กรุณากรอกข้อมูลให้ครบ")
-      return
+            if (result.status === "ok") {
+                alert("ลงทะเบียนสมาชิกเรียบร้อยแล้ว");
+                liff.closeWindow(); // ปิดหน้าต่าง LIFF
+            } else {
+                throw new Error(result.message || "บันทึกไม่สำเร็จ");
+            }
+        } catch (err) {
+            alert("เกิดข้อผิดพลาด: " + err.message);
+            btn.disabled = false;
+            statusEl.innerText = "❌ ลงทะเบียนไม่สำเร็จ";
+        }
     }
 
-    const data = {
-      ofm: OFM,
-      userId: profile.userId,
-      name: name,
-      home: home,
-      address: address,
-      phone: phone
-    }
-
-    console.log("SEND:", data)
-
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(data)
-    })
-
-    const json = await res.json()
-
-    console.log("RESULT:", json)
-
-    if (json.status === "ok") {
-      alert("สมัครสำเร็จ ✅")
-      liff.closeWindow()
-    } else {
-      alert("สมัครไม่สำเร็จ ❌")
-    }
-
-  } catch (err) {
-    console.error("REGISTER ERROR:", err)
-    alert("สมัครไม่สำเร็จ ❌")
-  }
-}
-
+    // เริ่มทำงานเมื่อโหลดหน้า
+    window.onload = initApp;
 </script>
 
 </body>

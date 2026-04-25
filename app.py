@@ -11,7 +11,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import time
 from datetime import datetime
-#from flask_cors import CORS
+from flask_cors import CORS
+import urllib.parse # สำหรับถอดรหัสภาษาไทย
  
  
  
@@ -23,7 +24,7 @@ from datetime import datetime
 # Flask
 # ------------------------------------
 app = Flask(__name__)
-#CORS(app)   # 🔥 ต้องมี
+CORS(app)   # 🔥 ต้องมี
 # ------------------------------------
 # Firebase Config
 # ------------------------------------
@@ -173,20 +174,23 @@ def get_line_config(ofm):
 # ================= API: GET CONFIG =================
 @app.route("/config/<ofm>", methods=["GET"])
 def get_config_api(ofm):
-    config = get_line_config(ofm)
+    # ถอดรหัสกรณี URL ส่งมาเป็น %... (ภาษาไทย)
+    decoded_ofm = urllib.parse.unquote(ofm)
+    print(f"🔍 Fetching config for: {decoded_ofm}")
+    
+    config = get_line_config(decoded_ofm)
 
     if not config:
         return jsonify({
             "status": "error",
-            "message": "ไม่พบ config"
-        })
+            "message": f"ไม่พบ config ของร้าน {decoded_ofm}"
+        }), 404
 
     return jsonify({
-    "status": "ok",
-    "liffId": config.get("liffId"),
-    "apiUrl": config.get("apiUrl"),
-     })
-
+        "status": "ok",
+        "liffId": config.get("liffId"),
+        "apiUrl": config.get("apiUrl"),
+    })
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
@@ -590,16 +594,16 @@ def webhook():
 def register():
     try:
         data = request.get_json()
-
-        print("📥 DATA:", data)
+        print("📥 Incoming Data:", data)
 
         ofm = data.get("ofm")
         userId = data.get("userId")
 
         if not ofm or not userId:
-            return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ"})
+            return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ (Missing ofm or userId)"}), 400
 
-        # 🔥 บันทึกลง Firebase
+        # บันทึกลง Firebase Firestore
+        # ตรวจสอบ Path ให้ตรงกับที่คุณออกแบบไว้
         db.collection(ofm) \
           .document(ofm) \
           .collection("customers") \
@@ -609,14 +613,16 @@ def register():
               "home": data.get("home"),
               "address": data.get("address"),
               "phone": data.get("phone"),
-              "userId": userId
+              "userId": userId,
+              "registeredAt": datetime.now() # เพิ่มเวลาที่สมัคร
           })
 
         return jsonify({"status": "ok"})
 
     except Exception as e:
         print("❌ REGISTER ERROR:", str(e))
-        return jsonify({"status": "error"})
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 #----------เปิดหน้า HTML ------------------------
 @app.route("/register.html")
