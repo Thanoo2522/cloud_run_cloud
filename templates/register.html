@@ -31,59 +31,75 @@ let OFM = ""
 const BASE_URL = "https://server-ofm-419896870147.asia-southeast1.run.app"
 
 // ✅ ดึง OFM แบบกันหาย (SessionStorage)
+// ================= GET OFM (แก้ไขใหม่) =================
 function getOfmFromUrl() {
-  const urlParams = new URLSearchParams(window.location.search)
-  let ofm = urlParams.get("ofm")
+  const urlParams = new URLSearchParams(window.location.search);
+  let ofm = urlParams.get("ofm");
 
-  // 🔥 fallback กรณี LIFF redirect แล้ว query หาย
-  if (!ofm) {
-    const context = liff.getContext()
-    if (context && context.referrer && context.referrer.extra) {
-      ofm = context.referrer.extra.ofm
-    }
+  if (ofm) {
+    console.log("Found OFM in URL:", ofm);
+    localStorage.setItem("ofm_backup", ofm); // บันทึกไว้กันเหนียว
+    return ofm;
   }
 
-  return ofm
+  // ถ้าใน URL ไม่มี ให้ไปดึงจากที่เคยบันทึกไว้
+  const backup = localStorage.getItem("ofm_backup");
+  console.log("Found OFM in Storage:", backup);
+  return backup;
 }
 
+// ================= INIT (ปรับปรุงการแสดง Error) =================
 async function initApp() {
-  const statusDiv = document.getElementById("status")
+  const statusDiv = document.getElementById("status"); // อย่าลืมสร้าง <div id="status"></div> ใน body
   try {
-    OFM = getOfmFromUrl()
+    OFM = getOfmFromUrl();
+
     if (!OFM) {
-      statusDiv.innerText = "❌ ไม่พบรหัสร้านค้า (ofm)"
-      return
+      statusDiv.innerText = "❌ ไม่พบรหัสร้านค้า (ofm) กรุณาเข้าผ่านลิงก์ที่มี ?ofm=... ต่อท้าย";
+      return;
     }
 
-    // ✅ ใช้ encodeURIComponent เพื่อรองรับ "เชียงกลมออนไลน์" (ภาษาไทย)
-    const res = await fetch(`${BASE_URL}/config/${encodeURIComponent(OFM)}`)
-    const config = await res.json()
+    console.log("Current OFM:", OFM);
 
-    console.log("SERVER CONFIG:", config)
-
-    if (config.status !== "ok" || !config.liffId) {
-      statusDiv.innerText = "❌ โหลด config ไม่สำเร็จ: " + (config.message || "Data Error")
-      return
+    // ✅ ส่งไป Flask โดยใช้ encodeURIComponent ป้องกันภาษาไทยเพี้ยน
+    const res = await fetch(`${BASE_URL}/config/${encodeURIComponent(OFM)}`);
+    
+    if (!res.ok) {
+        const errorData = await res.json();
+        statusDiv.innerText = `❌ Error: ${errorData.message || 'เชื่อมต่อ Server ไม่ได้'}`;
+        return;
     }
 
-    LIFF_ID = config.liffId.trim()
-    API_URL = config.apiUrl ? config.apiUrl.trim() : `${BASE_URL}/register`
+    const config = await res.json();
+    console.log("Config from server:", config);
+
+    // เช็คค่าจาก JSON ที่ Server ส่งมา (ต้องตรงกับใน Firestore)
+    LIFF_ID = config.liffId ? config.liffId.trim() : "";
+    API_URL = config.apiUrl ? config.apiUrl.trim() : "";
+
+    if (!LIFF_ID) {
+      statusDiv.innerText = "❌ ร้านนี้ยังไม่ได้ตั้งค่า liffId ในระบบ";
+      return;
+    }
 
     // ✅ เริ่ม LIFF
-    await liff.init({ liffId: LIFF_ID })
+    await liff.init({ liffId: LIFF_ID });
 
     if (!liff.isLoggedIn()) {
-      liff.login()
+      liff.login();
     } else {
-      statusDiv.style.color = "green"
-      statusDiv.innerText = "✅ พร้อมลงทะเบียนร้าน: " + OFM
+      statusDiv.innerText = "✅ เชื่อมต่อร้าน: " + OFM;
+      statusDiv.style.color = "green";
     }
 
   } catch (err) {
-    console.error("INIT ERROR:", err)
-    statusDiv.innerText = "❌ เกิดข้อผิดพลาดในการโหลด"
+    console.error("INIT ERROR:", err);
+    statusDiv.innerText = "❌ ระบบขัดข้อง: " + err.message;
   }
 }
+
+
+ 
 
 initApp()
 
