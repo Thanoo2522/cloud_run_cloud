@@ -621,7 +621,7 @@ def register():
           .collection("customers") \
           .document(name) \
           .set({
-              "name": data.get("name"),
+              "username": data.get("name"),
               "home": data.get("home"),
               "address": data.get("address"),
               "phone": data.get("phone"),
