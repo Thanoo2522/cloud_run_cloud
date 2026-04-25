@@ -475,11 +475,10 @@ def webhook():
         events = body_json.get("events", [])
 
         for event in events:
-
-            # 🔥 รับเฉพาะ text message
             if event.get("type") != "message" or event["message"]["type"] != "text":
                 continue
 
+            user_id = event["source"].get("userId")
             user_message = event["message"]["text"]
             parts = user_message.split("|")
 
@@ -489,152 +488,102 @@ def webhook():
             shopname = parts[3].strip() if len(parts) > 3 else ""
 
             reply_token = event.get("replyToken")
-
-            # 🔥 ดึง config จาก Firebase
             config = get_line_config(ofm_name)
-            if not config:
-                print(f"⚠️ ไม่พบ Config สำหรับร้าน: {ofm_name}")
-                continue
+            if not config: continue
 
             access_token = config.get("access_token")
+            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"}
 
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {access_token}"
-            }
+            # 🛡️ 3. ตรวจสอบสถานะสมาชิก (CHECK CACHE FIRST)
+            cache_key = f"{ofm_name}_{user_id}"
+            is_registered = False
 
-            messages_to_send = []
-
-            # ================= CASE: หมวดสินค้า =================
-            if command in ["หมวดสินค้า", "test"]:
-
-                items = get_mod_product_direct(ofm_name)
-
-                if items:
-                    messages_to_send.append(
-                        build_flex_category(ofm_name, items)
-                    )
-                else:
-                    messages_to_send.append({
-                        "type": "text",
-                        "text": f"📍 {ofm_name}: ไม่พบข้อมูลหมวดหมู่สินค้า"
-                    })
-
-            # ================= CASE: mode =================
-            elif command == "mode":
-
-                partners = get_partners_direct(ofm_name)
-
-                if partners:
-                    messages_to_send.append(
-                        build_flex_partners(ofm_name, modename, partners)
-                    )
-                else:
-                    messages_to_send.append({
-                        "type": "text",
-                        "text": f"❌ ไม่พบร้านค้าในหมวด {modename}"
-                    })
-
-            # ================= CASE: partner =================
-            elif command == "partner":
-
-                products = get_products(ofm_name, shopname, modename)
-
-                if products:
-                    messages_to_send.append(
-                        build_flex_products(products)
-                    )
-                else:
-                    messages_to_send.append({
-                        "type": "text",
-                        "text": f"❌ ไม่พบสินค้าในร้าน {shopname}"
-                    })
-
-            # ================= CASE: register =================
-            elif command == "register":
-
-                liff_id = config.get("liffId")
-
-                if not liff_id:
-                    messages_to_send.append({
-                        "type": "text",
-                        "text": "❌ ยังไม่ได้ตั้งค่า LIFF"
-                    })
-                else:
-                    # 🔥 ส่ง ofm ไปด้วย
-                    liff_url = f"https://liff.line.me/{liff_id}?ofm={ofm_name}"
-
-                    messages_to_send.append({
-                        "type": "text",
-                        "text": f"👉 กดสมัครสมาชิกที่นี่\n{liff_url}"
-                    })
-
-            # ================= DEFAULT =================
+            if cache_key in registered_users_cache:
+                # ✅ เจอใน Cache ไม่ต้องเรียก Firebase
+                is_registered = True
+                print(f"⚡ Cache Hit: {cache_key}")
             else:
-                messages_to_send.append({
-                    "type": "text",
-                    "text": "❗ คำสั่งไม่ถูกต้อง"
-                })
+                # 🔍 ไม่เจอใน Cache ค่อยไปเช็ค Firebase
+                customer_ref = db.collection(ofm_name).document(ofm_name).collection("customers").document(user_id)
+                customer_doc = customer_ref.get()
+                
+                if customer_doc.exists:
+                    is_registered = True
+                    # ✅ เจอใน Firebase แล้วบันทึกลง Cache ไว้ใช้ครั้งหน้า
+                    registered_users_cache.add(cache_key)
+                    print(f"☁️ Firebase Fetch & Cached: {cache_key}")
 
-            # 🔥 ส่ง reply กลาง
-            payload = {
-                "replyToken": reply_token,
-                "messages": messages_to_send
-            }
+            # ถ้ายังไม่เป็นสมาชิก
+            if not is_registered:
+                liff_id = config.get("liffId")
+                text_msg = f"📍 กรุณาสมัครสมาชิกก่อนใช้งาน:\nhttps://liff.line.me/{liff_id}?ofm={ofm_name}" if liff_id else "❌ ระบบยังไม่พร้อม"
+                
+                requests.post("https://api.line.me/v2/bot/message/reply", headers=headers, 
+                              json={"replyToken": reply_token, "messages": [{"type": "text", "text": text_msg}]})
+                continue
 
-            res = requests.post(
-                "https://api.line.me/v2/bot/message/reply",
-                headers=headers,
-                json=payload
-            )
+            # ✅ 4. ส่วนของคำสั่งเดิม (หมวดสินค้า, mode, partner)
+            messages_to_send = []
+            if command in ["เลือกหมวดสินค้า", "test"]:
+                items = get_mod_product_direct(ofm_name)
+                messages_to_send.append(build_flex_category(ofm_name, items) if items else {"type": "text", "text": "ไม่พบหมวดหมู่"})
+            elif command == "mode":
+                partners = get_partners_direct(ofm_name)
+                messages_to_send.append(build_flex_partners(ofm_name, modename, partners) if partners else {"type": "text", "text": "ไม่พบร้านค้า"})
+            elif command == "partner":
+                products = get_products(ofm_name, shopname, modename)
+                messages_to_send.append(build_flex_products(products) if products else {"type": "text", "text": "ไม่พบสินค้า"})
+            else:
+                messages_to_send.append({"type": "text", "text": "❗ คำสั่งไม่ถูกต้อง"})
 
-            print(f"📤 Reply [{command}] -> {res.status_code}")
-
-            if res.status_code != 200:
-                print(f"❌ Error Detail: {res.text}")
+            # 5. ส่งข้อความตอบกลับ
+            requests.post("https://api.line.me/v2/bot/message/reply", headers=headers, 
+                          json={"replyToken": reply_token, "messages": messages_to_send})
 
         return "OK", 200
-
     except Exception as e:
-        print("❌ WEBHOOK ERROR:", str(e))
-        traceback.print_exc()
-        return "ERROR", 500 
+        print("❌ WEBHOOK ERROR:", str(e)); traceback.print_exc()
+        return "ERROR", 500
 
 #======================line OA สร้าง register ===============================
 #------------ Flask รับข้อมูลจาก HTML แล้วบันทึกลง firebase ------------------
+
+
+ 
+# --- ส่วนบนของไฟล์ (เพิ่มตัวแปร Cache) ---
+# ใช้ set เพราะค้นหาข้อมูลได้เร็วกว่า list (O(1) vs O(n))
+registered_users_cache = set()
+
+# --- ปรับปรุงฟังก์ชัน register เพื่อบันทึกเข้า Cache ---
 @app.route("/register", methods=["POST"])
 def register():
     try:
         data = request.get_json()
-
-        print("📥 DATA:", data)
-
         ofm = data.get("ofm")
         userId = data.get("userId")
-        name = data.get("name")
+
         if not ofm or not userId:
             return jsonify({"status": "error", "message": "ข้อมูลไม่ครบ"})
 
-        # 🔥 บันทึกลง Firebase
-        db.collection(ofm) \
-          .document(ofm) \
-          .collection("customers") \
-          .document(name) \
-          .set({
+        # บันทึกลง Firebase
+        db.collection(ofm).document(ofm).collection("customers").document(userId).set({
               "username": data.get("name"),
               "home": data.get("home"),
               "address": data.get("address"),
               "phone": data.get("phone"),
               "userId": userId,
               "activeOrderId": ""  # สำหรับรอรับ orderId ในอนาคต
-          })
+        })
+
+        # ✅ อัปเดตเข้า Cache ทันทีที่ลงทะเบียนสำเร็จ
+        cache_key = f"{ofm}_{userId}"
+        registered_users_cache.add(cache_key)
+        print(f"🆕 Added to Cache: {cache_key}")
 
         return jsonify({"status": "ok"})
-
     except Exception as e:
         print("❌ REGISTER ERROR:", str(e))
         return jsonify({"status": "error"})
-
 #----------เปิดหน้า HTML ------------------------
 @app.route("/register.html")
 def register_page():
