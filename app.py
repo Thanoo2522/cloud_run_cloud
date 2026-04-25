@@ -270,23 +270,25 @@ def build_flex_category(ofm_name,items):
 #============== commamd "order" ======================
 def handle_order_command(ofm_name, user_id, parts):
     try:
-        # ดึงข้อมูลจาก parts (index 2 เป็นต้นไป)
+        # ดึงข้อมูลจาก parts ตามลำดับใหม่ที่สั้นลง (ofm|order|name|price)
         productname  = parts[2].strip() if len(parts) > 2 else "ไม่มีชื่อสินค้า"
-        dataproduct  = parts[3].strip() if len(parts) > 3 else ""
-        priceproduct = parts[4].strip() if len(parts) > 4 else "0"
-        image_url    = parts[5].strip() if len(parts) > 5 else ""
-        partnershop  = parts[6].strip() if len(parts) > 6 else ""
+        priceproduct = parts[3].strip() if len(parts) > 3 else "0"
+        
+        # ส่วนที่ตัดออกจากข้อความแชท ให้ตั้งค่าเริ่มต้นไว้ หรือดึงจาก DB ในอนาคต
+        dataproduct  = "" 
+        image_url    = "" 
+        partnershop  = "ร้านค้าทั่วไป"
 
         customer_ref = db.collection(ofm_name).document(ofm_name).collection("customers").document(user_id)
         
-        # 1. จัดการ activeOrderId และเอกสาร Order หลัก
+        # 1. สร้าง ID ออเดอร์ใหม่จาก Timestamp
         activeOrderId = str(int(time.time() * 1000))
         order_ref = customer_ref.collection("orders").document(activeOrderId)
         
-        # ใช้ batch เพื่อให้เขียนข้อมูลหลายจุดพร้อมกัน (Atomic)
+        # 🛡️ ใช้ Batch เพื่อเขียนข้อมูลลงหลายจุดพร้อมกัน
         batch = db.batch()
         
-        # สร้าง Order หลัก
+        # สร้างหัวเอกสาร Order
         batch.set(order_ref, {
             "Preorder": 1,
             "createdAt": datetime.utcnow(),
@@ -294,10 +296,10 @@ def handle_order_command(ofm_name, user_id, parts):
             "orderId": activeOrderId
         })
         
-        # อัปเดต activeOrderId ที่ตัวลูกค้า
+        # อัปเดตสถานะตะกร้าปัจจุบันที่ตัวลูกค้า
         batch.update(customer_ref, {"activeOrderId": activeOrderId})
         
-        # 2. เพิ่มสินค้าลงใน sub-collection 'items'
+        # 2. เพิ่มสินค้าลงใน Sub-collection 'items'
         item_ref = order_ref.collection("items").document()
         batch.set(item_ref, {
             "productname": productname,
@@ -314,11 +316,12 @@ def handle_order_command(ofm_name, user_id, parts):
         
         return {
             "type": "text",
-            "text": f"🛒 เพิ่มสินค้าลงตะกร้าแล้ว!\n🔹 {productname}\n💰 ราคา: {priceproduct} บาท\n📦 เลขที่สั่งซื้อ: {activeOrderId}"
+            "text": f"🛒 เพิ่มลงตะกร้าสำเร็จ!\n🔹 {productname}\n💰 ราคา {priceproduct} บาท\n📦 เลขออเดอร์: {activeOrderId}"
         }
     except Exception as e:
         print(f"❌ handle_order_command Error: {e}")
-        return {"type": "text", "text": "❌ เกิดข้อผิดพลาดในการบันทึกออเดอร์"}
+        return {"type": "text", "text": "❌ บันทึกออเดอร์ไม่สำเร็จ กรุณาลองใหม่"}
+
 
 # ===============================================================
 # 3. ฟังก์ชันดึง "Partner" (Logic เดียวกับ get_mod_product_direct)
@@ -406,27 +409,28 @@ def get_products(ofm, shopname, modename):
         print(f"❌ ERROR get_products: {str(e)}")
         return []
  #-------------- flex สร้างรายการสินค้า --------------------------
-def build_flex_products(ofm_name,products):
+def build_flex_products(ofm_name, products):
     bubbles = []
 
-    # แบ่งสินค้า 4 รายการ / bubble
     for i in range(0, len(products), 4):
         chunk = products[i:i+4]
-
         contents = []
 
-        # 🔥 loop + ใช้ idx สำหรับ separator
         for idx, p in enumerate(chunk):
-
+            # 🔥 ดึงข้อมูลมาเตรียมไว้
+            product_name = p.get("productname", "-")
+            product_price = p.get("priceproduct", "-")
+            # ในอนาคตถ้ามี productId ให้ใช้ p.get("id") แทนชื่อสินค้าได้เลยครับ
+            
             contents.append({
-                 "type": "box",
-                    "layout": "horizontal",
-                     "spacing": "md",              # เพิ่มระยะห่างระหว่าง รูปภาพ กับ ข้อความ
-                     "borderWidth": "1px",          # เส้นขอบไม่ต้องหนามากจะดูแพงกว่าครับ (1px หรือ 2px)
-                     "borderColor": "#0000FF",      # สีน้ำเงิน
-                     "cornerRadius": "md",          # มุมมนพอสวยงาม
-                     "paddingAll": "13px",          # 🔥 พื้นที่ว่างด้านในกรอบ (ช่วยให้รูปและข้อความไม่ชิดเส้นขอบ)
-                     "margin": "md",                # 🔥 ระยะห่างระหว่างกล่องสินค้าแต่ละกล่อง
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "md",
+                "borderWidth": "1px",
+                "borderColor": "#0000FF",
+                "cornerRadius": "md",
+                "paddingAll": "13px",
+                "margin": "md",
                 "contents": [
                     {
                         "type": "image",
@@ -442,7 +446,7 @@ def build_flex_products(ofm_name,products):
                         "contents": [
                             {
                                 "type": "text",
-                                "text": p.get("productname", "-"),
+                                "text": product_name,
                                 "weight": "bold",
                                 "size": "sm",
                                 "wrap": True
@@ -456,31 +460,28 @@ def build_flex_products(ofm_name,products):
                             },
                             {
                                 "type": "text",
-                                "text": f"฿ {p.get('priceproduct', '-')}",
+                                "text": f"฿ {product_price}",
                                 "size": "sm",
                                 "color": "#FF0000"
                             },
                             {
-                            "type": "button",
-                            "style": "primary",
-                            "height": "sm",
-                            "margin": "sm",
-                            "flex": 0,  # 🔥 เพิ่มตรงนี้ เพื่อให้ปุ่มไม่ขยายเต็มพื้นที่
-                            "action": {
-                                         "type": "message",
-                                         "label": "สั่งซื้อ",
-                                         "text": f"{ofm_name}|order|{p.get('productname', '-')}"
-                                     }
+                                "type": "button",
+                                "style": "primary",
+                                "height": "sm",
+                                "margin": "sm",
+                                "flex": 0,
+                                "action": {
+                                    "type": "message",
+                                    "label": "🛒 สั่งซื้อ",
+                                    # ✅ ส่งแค่ ofm | command | productname | price (สั้นและครอบคลุม)
+                                    "text": f"{ofm_name}|order|{product_name}|{product_price}"
+                                }
                             }
-
                         ]
                     }
                 ]
             })
 
- 
-
-        # 🔥 bubble (ใส่ header ตรงนี้ ไม่ใช่ใน row)
         bubbles.append({
             "type": "bubble",
             "size": "giga",
@@ -489,34 +490,19 @@ def build_flex_products(ofm_name,products):
                 "layout": "vertical",
                 "spacing": "md",
                 "contents": [
-                    # ✅ หัวบนสุด
-                    {
-                        "type": "text",
-                        "text": "เลือกสินค้า",
-                        "weight": "bold",
-                        "size": "md",
-                        "color": "#050505"
-                    },
- 
-
-                    # ✅ รายการสินค้า
+                    {"type": "text", "text": "เลือกสินค้า", "weight": "bold", "size": "md", "color": "#050505"},
                     *contents
                 ]
             }
         })
-
-        # จำกัดไม่เกิน 10 bubbles
-        if len(bubbles) >= 10:
-            break
+        if len(bubbles) >= 10: break
 
     return {
         "type": "flex",
         "altText": "รายการสินค้า",
-        "contents": {
-            "type": "carousel",
-            "contents": bubbles
-        }
+        "contents": {"type": "carousel", "contents": bubbles}
     }
+
 # ===============================================================
 # 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
 # ============================================================ 
