@@ -77,50 +77,50 @@ function getOfmFromUrl() {
 // ================= INIT =================
 async function initApp() {
   try {
-
-    OFM = getOfmFromUrl()
-
-    if (!OFM) {
-      alert("❌ ไม่พบ ofm")
-      return
-    }
-
-    console.log("OFM:", OFM)
-
-    // ✅ โหลด config จาก Flask
-    const res = await fetch(`${BASE_URL}/config/${OFM}`)
-    const config = await res.json()
-
-    console.log("CONFIG:", config)
-
-    if (!config.liffId || !config.apiUrl) {
-      alert("❌ โหลด config ไม่สำเร็จ")
-      return
-    }
-
-    API_URL = config.apiUrl.trim()
-    LIFF_ID = config.liffId.trim()
-
-    if (!LIFF_ID || !API_URL) {
-      alert("❌ config ไม่ครบ")
-      return
-    }
-
-    // ✅ init LIFF
-    await liff.init({ liffId: LIFF_ID })
+    // 1. ต้อง init LIFF ก่อนเสมอ เพื่อให้ liff.getContext() ทำงานได้
+    await liff.init({ liffId: "2009858553-w282abVT" }) // ใส่ ID ไปตรงๆ ก่อนเพื่อเริ่มระบบ
 
     if (!liff.isLoggedIn()) {
       liff.login()
       return
     }
 
-    console.log("✅ LIFF READY")
+    // 2. ดึงค่า ofm จาก URL หรือจาก Context ของ LIFF
+    const urlParams = new URLSearchParams(window.location.search)
+    OFM = urlParams.get("ofm")
+
+    // ถ้าใน URL ไม่มี (เพราะโดน Redirect) ให้หาใน Context
+    if (!OFM) {
+      const context = liff.getContext()
+      // ถ้าส่งผ่าน liff.line.me/xxx?ofm=... ค่าจะอยู่ในเครื่องหมาย ?
+      // หรือคุณอาจต้องใช้ liff.state เพื่อดึงค่ากลับมา
+    }
+
+    if (!OFM) {
+      alert("❌ ไม่พบชื่อร้าน (ofm)")
+      return
+    }
+
+    console.log("OFM Found:", OFM)
+
+    // 3. เมื่อได้ OFM แล้วค่อยไปดึง Config
+    const encodedOFM = encodeURIComponent(OFM)
+    const res = await fetch(`${BASE_URL}/config/${encodedOFM}`)
+    const config = await res.json()
+
+    if (config.status === "ok") {
+      API_URL = config.apiUrl.trim()
+      console.log("✅ Ready to Register")
+    } else {
+      alert("❌ ไม่พบข้อมูลร้านในระบบ")
+    }
 
   } catch (err) {
     console.error("INIT ERROR:", err)
-    alert("โหลด config ไม่สำเร็จ")
+    alert("เกิดข้อผิดพลาดในการโหลดข้อมูล")
   }
 }
+
 
 initApp()
 
