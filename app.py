@@ -353,7 +353,7 @@ def get_products(ofm, shopname, modename):
         print(f"❌ ERROR get_products: {str(e)}")
         return []
  #-------------- flex สร้างรายการสินค้า --------------------------
-def build_flex_products(products):
+def build_flex_products(ofm_name,products):
     bubbles = []
 
     # แบ่งสินค้า 4 รายการ / bubble
@@ -416,7 +416,7 @@ def build_flex_products(products):
                             "action": {
                                          "type": "message",
                                          "label": "สั่งซื้อ",
-                                         "text": f"order|{p.get('productname', '-')}"
+                                         "text": f"{ofm_name}|order|{p.get('productname', '-')}"
                                      }
                             }
 
@@ -532,7 +532,7 @@ def webhook():
                 messages_to_send.append(build_flex_partners(ofm_name, modename, partners) if partners else {"type": "text", "text": "ไม่พบร้านค้า"})
             elif command == "partner":
                 products = get_products(ofm_name, shopname, modename)
-                messages_to_send.append(build_flex_products(products) if products else {"type": "text", "text": "ไม่พบสินค้า"})
+                messages_to_send.append(build_flex_products(ofm_name,products) if products else {"type": "text", "text": "ไม่พบสินค้า"})
             else:
                 messages_to_send.append({"type": "text", "text": "❗ คำสั่งไม่ถูกต้อง"})
 
