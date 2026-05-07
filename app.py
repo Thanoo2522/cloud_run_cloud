@@ -442,7 +442,10 @@ def get_products(ofm, shopname, modename):
                 "productname": data.get("productname"),
                 "dataproduct": data.get("dataproduct"),
                 "image_url": data.get("image_url"),
-                "priceproduct": data.get("priceproduct")
+                "priceproduct": data.get("priceproduct"),
+                "partnershop":data.get("partnershop"),
+                "mode":data.get("mode"),
+                "name_ofm":data.get("name_ofm")
             })
 
        # print(f"🛒 พบ {len(items)} สินค้าใน {shopname}")
