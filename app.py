@@ -282,7 +282,7 @@ def handle_order_command(ofm_name, user_id, parts):
         partnershop = parts[6].strip() if len(parts) > 6 else "ร้านค้าทั่วไป"
         mode = parts[7].strip() if len(parts) > 7 else "-"
         name_ofm = parts[8].strip() if len(parts) > 8 else "-"
-        partnershop = "ร้านค้าทั่วไป"
+         
 
         print("🛒 PRODUCT:", productname)
         print("💰 PRICE:", priceproduct)
