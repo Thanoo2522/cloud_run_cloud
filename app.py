@@ -870,7 +870,7 @@ def webhook():
                     else "❌ ระบบยังไม่พร้อม"
                 )
 
-                requests.post(
+                response = requests.post(
                     "https://api.line.me/v2/bot/message/reply",
                     headers=headers,
                     json={
@@ -883,6 +883,9 @@ def webhook():
                         ]
                     }
                 )
+
+                print("📨 REGISTER STATUS:", response.status_code)
+                print("📨 REGISTER RESPONSE:", response.text)
 
                 continue
 
@@ -938,6 +941,8 @@ def webhook():
 
                 modename = parts[2].strip() if len(parts) > 2 else ""
 
+                print("📂 MODENAME:", modename)
+
                 partners = get_partners_direct(ofm_name)
 
                 if partners:
@@ -965,11 +970,16 @@ def webhook():
                 modename = parts[2].strip() if len(parts) > 2 else ""
                 shopname = parts[3].strip() if len(parts) > 3 else ""
 
+                print("🏪 SHOPNAME:", shopname)
+                print("📂 MODENAME:", modename)
+
                 products = get_products(
                     ofm_name,
                     shopname,
                     modename
                 )
+
+                print("🛒 PRODUCTS:", len(products))
 
                 if products:
 
@@ -990,9 +1000,9 @@ def webhook():
             # ==================================================
             # ORDER ME
             # ==================================================
-            elif command == "สินค้าของฉัน": # "orderme":
+            elif command == "สินค้าของฉัน":
 
-                print("🛒 โหลด ORDER")
+                print("🛒 โหลด ORDER ทั้งหมด")
 
                 customer_ref = db.collection(ofm_name) \
                     .document(ofm_name) \
@@ -1010,30 +1020,31 @@ def webhook():
 
                 else:
 
-                    customer_data = customer_doc.to_dict()
+                    # ============================================
+                    # ดึง ORDER ทั้งหมด
+                    # ============================================
+                    orders_ref = customer_ref \
+                        .collection("orders") \
+                        .stream()
 
-                    active_order_id = customer_data.get("activeOrderId")
+                    items = []
 
-                    print("📦 ACTIVE ORDER:", active_order_id)
+                    for order_doc in orders_ref:
 
-                    if not active_order_id:
+                        order_id = order_doc.id
 
-                        messages_to_send.append({
-                            "type": "text",
-                            "text": "🛒 ยังไม่มีสินค้าในตะกร้า"
-                        })
+                        print("📦 ORDER ID:", order_id)
 
-                    else:
-
+                        # ========================================
+                        # ดึง ITEMS ของแต่ละ ORDER
+                        # ========================================
                         items_ref = (
                             customer_ref
                             .collection("orders")
-                            .document(active_order_id)
+                            .document(order_id)
                             .collection("items")
                             .stream()
                         )
-
-                        items = []
 
                         for d in items_ref:
 
@@ -1042,32 +1053,47 @@ def webhook():
                             items.append({
 
                                 "ItemId": d.id,
+
+                                "OrderId": order_id,
+
                                 "ProductName": data.get("productname"),
+
                                 "ProductDetail": data.get("dataproduct"),
+
                                 "Price": data.get("priceproduct"),
+
                                 "numberproduct": data.get("numberproduct"),
+
                                 "imageurl": data.get("image_url"),
+
                                 "Partnershop": data.get("Partnershop")
 
                             })
 
-                        if items:
+                    print("🛒 TOTAL ITEMS:", len(items))
 
-                            messages_to_send.append(
-                                build_flex_order_items(items)
-                            )
+                    # ============================================
+                    # SEND FLEX
+                    # ============================================
+                    if items:
 
-                        else:
+                        messages_to_send.append(
+                            build_flex_order_items(items)
+                        )
 
-                            messages_to_send.append({
-                                "type": "text",
-                                "text": "🛒 ยังไม่มีสินค้าในตะกร้า"
-                            })
+                    else:
+
+                        messages_to_send.append({
+                            "type": "text",
+                            "text": "🛒 ยังไม่มีสินค้าในตะกร้า"
+                        })
 
             # ==================================================
             # UNKNOWN
             # ==================================================
             else:
+
+                print("❌ UNKNOWN COMMAND")
 
                 messages_to_send.append({
                     "type": "text",
@@ -1079,6 +1105,9 @@ def webhook():
             # ==================================================
             if messages_to_send:
 
+                print("📤 REPLY:")
+                print(json.dumps(messages_to_send, ensure_ascii=False))
+
                 response = requests.post(
                     "https://api.line.me/v2/bot/message/reply",
                     headers=headers,
@@ -1088,8 +1117,8 @@ def webhook():
                     }
                 )
 
-                print("📨 STATUS:", response.status_code)
-                print("📨 RESPONSE:", response.text)
+                print("📨 LINE STATUS:", response.status_code)
+                print("📨 LINE RESPONSE:", response.text)
 
         return "OK", 200
 
