@@ -545,90 +545,292 @@ def build_flex_products(ofm_name, products):
 @app.route("/webhook", methods=["POST"])
 def webhook():
     try:
+
+        # ==================================================
+        # รับ BODY จาก LINE
+        # ==================================================
         body = request.get_data()
+
+        print("📩 RAW BODY:", body)
+
         body_json = json.loads(body)
+
+        print("📦 BODY JSON:", json.dumps(body_json, ensure_ascii=False))
+
         events = body_json.get("events", [])
 
+        # ==================================================
+        # LOOP EVENTS
+        # ==================================================
         for event in events:
-            if event.get("type") != "message" or event["message"]["type"] != "text":
-                continue
+
+            print("📨 EVENT:", json.dumps(event, ensure_ascii=False))
 
             user_id = event["source"].get("userId")
-            user_message = event["message"]["text"]
+            reply_token = event.get("replyToken")
+            event_type = event.get("type")
+
+            # ==================================================
+            # MESSAGE EVENT
+            # ==================================================
+            if event_type == "message":
+
+                if event["message"]["type"] != "text":
+                    continue
+
+                user_message = event["message"]["text"]
+
+            # ==================================================
+            # POSTBACK EVENT
+            # ==================================================
+            elif event_type == "postback":
+
+                user_message = event["postback"]["data"]
+
+            else:
+                continue
+
+            print("💬 USER MESSAGE:", user_message)
+
+            # ==================================================
+            # SPLIT COMMAND
+            # ==================================================
             parts = user_message.split("|")
 
-            ofm_name = parts[0].strip()
-            command = parts[1].strip() if len(parts) > 1 else ""
-            modename = parts[2].strip() if len(parts) > 2 else ""
-            shopname = parts[3].strip() if len(parts) > 3 else ""
+            print("📌 PARTS:", parts)
 
-            reply_token = event.get("replyToken")
+            ofm_name = parts[0].strip() if len(parts) > 0 else ""
+            command = parts[1].strip() if len(parts) > 1 else ""
+
+            print("🏷️ OFM:", ofm_name)
+            print("⚙️ COMMAND:", command)
+
+            # ==================================================
+            # โหลด CONFIG
+            # ==================================================
             config = get_line_config(ofm_name)
-            if not config: continue
+
+            if not config:
+
+                print("❌ ไม่พบ config")
+
+                continue
 
             access_token = config.get("access_token")
-            headers = {"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"}
 
-            # 🛡️ 3. ตรวจสอบสถานะสมาชิก (CHECK CACHE FIRST)
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}"
+            }
+
+            # ==================================================
+            # CHECK MEMBER
+            # ==================================================
             cache_key = f"{ofm_name}_{user_id}"
+
             is_registered = False
 
             if cache_key in registered_users_cache:
-                # ✅ เจอใน Cache ไม่ต้องเรียก Firebase
+
                 is_registered = True
+
                 print(f"⚡ Cache Hit: {cache_key}")
+
             else:
-                # 🔍 ไม่เจอใน Cache ค่อยไปเช็ค Firebase
-                customer_ref = db.collection(ofm_name).document(ofm_name).collection("customers").document(user_id)
+
+                customer_ref = db.collection(ofm_name) \
+                    .document(ofm_name) \
+                    .collection("customers") \
+                    .document(user_id)
+
                 customer_doc = customer_ref.get()
-                
+
                 if customer_doc.exists:
+
                     is_registered = True
-                    # ✅ เจอใน Firebase แล้วบันทึกลง Cache ไว้ใช้ครั้งหน้า
+
                     registered_users_cache.add(cache_key)
+
                     print(f"☁️ Firebase Fetch & Cached: {cache_key}")
 
-            # ถ้ายังไม่เป็นสมาชิก
+            # ==================================================
+            # ยังไม่สมัครสมาชิก
+            # ==================================================
             if not is_registered:
+
                 liff_id = config.get("liffId")
-                text_msg = f"📍 กรุณาสมัครสมาชิกก่อนใช้งาน:\nhttps://liff.line.me/{liff_id}?ofm={ofm_name}" if liff_id else "❌ ระบบยังไม่พร้อม"
-                
-                requests.post("https://api.line.me/v2/bot/message/reply", headers=headers, 
-                              json={"replyToken": reply_token, "messages": [{"type": "text", "text": text_msg}]})
+
+                text_msg = (
+                    f"📍 กรุณาสมัครสมาชิกก่อนใช้งาน:\n"
+                    f"https://liff.line.me/{liff_id}?ofm={ofm_name}"
+                    if liff_id
+                    else "❌ ระบบยังไม่พร้อม"
+                )
+
+                requests.post(
+                    "https://api.line.me/v2/bot/message/reply",
+                    headers=headers,
+                    json={
+                        "replyToken": reply_token,
+                        "messages": [
+                            {
+                                "type": "text",
+                                "text": text_msg
+                            }
+                        ]
+                    }
+                )
+
                 continue
 
-            # ✅ 4. ส่วนของคำสั่งเดิม (หมวดสินค้า, mode, partner)
+            # ==================================================
+            # COMMANDS
+            # ==================================================
             messages_to_send = []
-            
+
+            # ==================================================
+            # ORDER
+            # ==================================================
             if command == "order":
-                # เรียกฟังก์ชันจัดการ Order ที่เราแยกไว้
-                messages_to_send.append(handle_order_command(ofm_name, user_id, parts))
 
+                print("🛒 เข้า ORDER COMMAND")
+
+                result = handle_order_command(
+                    ofm_name,
+                    user_id,
+                    parts
+                )
+
+                messages_to_send.append(result)
+
+            # ==================================================
+            # CATEGORY
+            # ==================================================
             elif command in ["เลือกหมวดสินค้า", "test"]:
+
+                print("📂 โหลดหมวดสินค้า")
+
                 items = get_mod_product_direct(ofm_name)
-                messages_to_send.append(build_flex_category(ofm_name, items) if items else {"type": "text", "text": "ไม่พบหมวดหมู่"})
-            
+
+                if items:
+
+                    messages_to_send.append(
+                        build_flex_category(
+                            ofm_name,
+                            items
+                        )
+                    )
+
+                else:
+
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": "❌ ไม่พบหมวดหมู่"
+                    })
+
+            # ==================================================
+            # MODE
+            # ==================================================
             elif command == "mode":
+
+                modename = parts[2].strip() if len(parts) > 2 else ""
+
+                print("📂 MODENAME:", modename)
+
                 partners = get_partners_direct(ofm_name)
-                messages_to_send.append(build_flex_partners(ofm_name, modename, partners) if partners else {"type": "text", "text": "ไม่พบร้านค้า"})
-            
+
+                if partners:
+
+                    messages_to_send.append(
+                        build_flex_partners(
+                            ofm_name,
+                            modename,
+                            partners
+                        )
+                    )
+
+                else:
+
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": "❌ ไม่พบร้านค้า"
+                    })
+
+            # ==================================================
+            # PARTNER
+            # ==================================================
             elif command == "partner":
-                products = get_products(ofm_name, shopname, modename)
-                messages_to_send.append(build_flex_products(ofm_name, products) if products else {"type": "text", "text": "ไม่พบสินค้า"})
-            
+
+                modename = parts[2].strip() if len(parts) > 2 else ""
+                shopname = parts[3].strip() if len(parts) > 3 else ""
+
+                print("🏪 SHOPNAME:", shopname)
+                print("📂 MODENAME:", modename)
+
+                products = get_products(
+                    ofm_name,
+                    shopname,
+                    modename
+                )
+
+                print("🛒 PRODUCTS:", len(products))
+
+                if products:
+
+                    messages_to_send.append(
+                        build_flex_products(
+                            ofm_name,
+                            products
+                        )
+                    )
+
+                else:
+
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": "❌ ไม่พบสินค้า"
+                    })
+
+            # ==================================================
+            # UNKNOWN COMMAND
+            # ==================================================
             else:
-                # กรณีพิมพ์อย่างอื่นมาที่ไม่ใช่ command ที่กำหนด
-                messages_to_send.append({"type": "text", "text": "❗ คำสั่งไม่ถูกต้อง"})
 
-            # 5. ส่งข้อความตอบกลับ
+                print("❌ UNKNOWN COMMAND")
+
+                messages_to_send.append({
+                    "type": "text",
+                    "text": f"❗ ไม่รู้จักคำสั่ง: {command}"
+                })
+
+            # ==================================================
+            # REPLY TO LINE
+            # ==================================================
             if messages_to_send:
-                requests.post("https://api.line.me/v2/bot/message/reply", headers=headers, 
-                              json={"replyToken": reply_token, "messages": messages_to_send})
 
+                print("📤 REPLY:")
+                print(json.dumps(messages_to_send, ensure_ascii=False))
+
+                response = requests.post(
+                    "https://api.line.me/v2/bot/message/reply",
+                    headers=headers,
+                    json={
+                        "replyToken": reply_token,
+                        "messages": messages_to_send
+                    }
+                )
+
+                print("📨 LINE STATUS:", response.status_code)
+                print("📨 LINE RESPONSE:", response.text)
 
         return "OK", 200
+
     except Exception as e:
-        print("❌ WEBHOOK ERROR:", str(e)); traceback.print_exc()
+
+        print("❌ WEBHOOK ERROR:", str(e))
+
+        traceback.print_exc()
+
         return "ERROR", 500
 
 #======================line OA สร้าง register ===============================
