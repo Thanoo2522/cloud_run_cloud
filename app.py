@@ -278,12 +278,13 @@ def handle_order_command(ofm_name, user_id, parts):
         priceproduct = parts[3].strip() if len(parts) > 3 else "0"
         image_url    = parts[4].strip() if len(parts) > 4 else ""
 
-        dataproduct = ""
+        dataproduct = parts[5].strip() if len(parts) > 5 else "-"
         partnershop = "ร้านค้าทั่วไป"
 
         print("🛒 PRODUCT:", productname)
         print("💰 PRICE:", priceproduct)
         print("🖼️ IMAGE:", image_url)
+        print("📄 DATA:", dataproduct)
 
         # ==================================================
         # CUSTOMER
@@ -454,7 +455,8 @@ def build_flex_products(ofm_name, products):
             product_name = p.get("productname", "-")
             product_price = p.get("priceproduct", "-")
             image_url = p.get("image_url", "")
-            
+            dataproduct = p.get("dataproduct", "-")
+
             contents.append({
                 "type": "box",
                 "layout": "horizontal",
@@ -507,7 +509,7 @@ def build_flex_products(ofm_name, products):
                                     "type": "postback",
                                     "label": "🛒 สั่งซื้อ",
                                     # ✅ เก็บ image_url ไว้ใน data ของ postback (ลูกค้าไม่เห็น)
-                                    "data": f"{ofm_name}|order|{product_name}|{product_price}|{image_url}",
+                                    "data": f"{ofm_name}|order|{product_name}|{product_price}|{image_url}|{dataproduct}",
                                     # ✅ แสดงข้อความสวยๆ ในห้องแชทแทนรหัสระบบ
                                     "displayText": f"สั่งซื้อ {product_name}"
                                 }
