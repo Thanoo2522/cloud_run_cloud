@@ -554,16 +554,203 @@ def build_flex_products(ofm_name, products):
         "contents": {"type": "carousel", "contents": bubbles}
     }
 
+# =========================================================
+# FLEX ORDER ITEMS
+# รองรับ 4 รายการ / bubble
+# สูงสุด 10 bubble = 40 รายการ
+# =========================================================
+def build_flex_order_items(items):
 
+    bubbles = []
+
+    grand_total = 0
+
+    # =====================================================
+    # แบ่ง 4 รายการต่อ 1 bubble
+    # =====================================================
+    for i in range(0, len(items), 4):
+
+        chunk = items[i:i+4]
+
+        contents = []
+
+        bubble_total = 0
+
+        for item in chunk:
+
+            product_name = item.get("ProductName", "-")
+            product_detail = item.get("ProductDetail", "-")
+
+            try:
+                price = int(item.get("Price", 0))
+            except:
+                price = 0
+
+            try:
+                qty = int(item.get("numberproduct", 1))
+            except:
+                qty = 1
+
+            image_url = item.get("imageurl", "")
+
+            subtotal = price * qty
+
+            bubble_total += subtotal
+            grand_total += subtotal
+
+            contents.append({
+
+                "type": "box",
+                "layout": "horizontal",
+                "spacing": "md",
+                "margin": "md",
+                "paddingAll": "10px",
+                "cornerRadius": "md",
+                "borderWidth": "1px",
+                "borderColor": "#E5E5E5",
+
+                "contents": [
+
+                    {
+                        "type": "image",
+                        "url": image_url,
+                        "size": "sm",
+                        "aspectMode": "cover",
+                        "aspectRatio": "1:1"
+                    },
+
+                    {
+                        "type": "box",
+                        "layout": "vertical",
+                        "spacing": "xs",
+                        "contents": [
+
+                            {
+                                "type": "text",
+                                "text": product_name,
+                                "weight": "bold",
+                                "size": "sm",
+                                "wrap": True
+                            },
+
+                            {
+                                "type": "text",
+                                "text": product_detail,
+                                "size": "xs",
+                                "color": "#999999",
+                                "wrap": True
+                            },
+
+                            {
+                                "type": "text",
+                                "text": f"฿ {price} x {qty}",
+                                "size": "sm",
+                                "color": "#FF0000"
+                            },
+
+                            {
+                                "type": "text",
+                                "text": f"รวม ฿ {subtotal}",
+                                "size": "sm",
+                                "weight": "bold",
+                                "color": "#1DB446"
+                            }
+
+                        ]
+                    }
+
+                ]
+            })
+
+        # =====================================================
+        # TOTAL ต่อ bubble
+        # =====================================================
+        contents.append({
+            "type": "separator",
+            "margin": "lg"
+        })
+
+        contents.append({
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "lg",
+            "contents": [
+
+                {
+                    "type": "text",
+                    "text": "รวมชุดนี้",
+                    "weight": "bold",
+                    "size": "md"
+                },
+
+                {
+                    "type": "text",
+                    "text": f"฿ {bubble_total}",
+                    "weight": "bold",
+                    "size": "md",
+                    "align": "end",
+                    "color": "#FF0000"
+                }
+
+            ]
+        })
+
+        bubbles.append({
+
+            "type": "bubble",
+            "size": "giga",
+
+            "body": {
+
+                "type": "box",
+                "layout": "vertical",
+
+                "contents": [
+
+                    {
+                        "type": "text",
+                        "text": "🛒 รายการสินค้า",
+                        "weight": "bold",
+                        "size": "lg",
+                        "color": "#1DB446"
+                    },
+
+                    *contents
+
+                ]
+            }
+        })
+
+        # =====================================================
+        # LINE FLEX LIMIT
+        # =====================================================
+        if len(bubbles) >= 10:
+            break
+
+    return {
+
+        "type": "flex",
+
+        "altText": f"รายการสินค้า {len(items)} รายการ",
+
+        "contents": {
+            "type": "carousel",
+            "contents": bubbles
+        }
+    }
 # ===============================================================
 # 2. WEBHOOK (ส่วนที่ปรับปรุง Payload)
 # ============================================================ 
+# =========================================================
+# WEBHOOK
+# =========================================================
 @app.route("/webhook", methods=["POST"])
 def webhook():
+
     try:
 
         # ==================================================
-        # รับ BODY จาก LINE
+        # BODY
         # ==================================================
         body = request.get_data()
 
@@ -587,7 +774,7 @@ def webhook():
             event_type = event.get("type")
 
             # ==================================================
-            # MESSAGE EVENT
+            # MESSAGE
             # ==================================================
             if event_type == "message":
 
@@ -597,7 +784,7 @@ def webhook():
                 user_message = event["message"]["text"]
 
             # ==================================================
-            # POSTBACK EVENT
+            # POSTBACK
             # ==================================================
             elif event_type == "postback":
 
@@ -609,7 +796,7 @@ def webhook():
             print("💬 USER MESSAGE:", user_message)
 
             # ==================================================
-            # SPLIT COMMAND
+            # SPLIT
             # ==================================================
             parts = user_message.split("|")
 
@@ -622,7 +809,7 @@ def webhook():
             print("⚙️ COMMAND:", command)
 
             # ==================================================
-            # โหลด CONFIG
+            # CONFIG
             # ==================================================
             config = get_line_config(ofm_name)
 
@@ -670,7 +857,7 @@ def webhook():
                     print(f"☁️ Firebase Fetch & Cached: {cache_key}")
 
             # ==================================================
-            # ยังไม่สมัครสมาชิก
+            # NOT MEMBER
             # ==================================================
             if not is_registered:
 
@@ -683,7 +870,7 @@ def webhook():
                     else "❌ ระบบยังไม่พร้อม"
                 )
 
-                response = requests.post(
+                requests.post(
                     "https://api.line.me/v2/bot/message/reply",
                     headers=headers,
                     json={
@@ -696,9 +883,6 @@ def webhook():
                         ]
                     }
                 )
-
-                print("📨 REGISTER STATUS:", response.status_code)
-                print("📨 REGISTER RESPONSE:", response.text)
 
                 continue
 
@@ -754,8 +938,6 @@ def webhook():
 
                 modename = parts[2].strip() if len(parts) > 2 else ""
 
-                print("📂 MODENAME:", modename)
-
                 partners = get_partners_direct(ofm_name)
 
                 if partners:
@@ -783,16 +965,11 @@ def webhook():
                 modename = parts[2].strip() if len(parts) > 2 else ""
                 shopname = parts[3].strip() if len(parts) > 3 else ""
 
-                print("🏪 SHOPNAME:", shopname)
-                print("📂 MODENAME:", modename)
-
                 products = get_products(
                     ofm_name,
                     shopname,
                     modename
                 )
-
-                print("🛒 PRODUCTS:", len(products))
 
                 if products:
 
@@ -811,11 +988,86 @@ def webhook():
                     })
 
             # ==================================================
-            # UNKNOWN COMMAND
+            # ORDER ME
+            # ==================================================
+            elif command == "สินค้าของฉัน": # "orderme":
+
+                print("🛒 โหลด ORDER")
+
+                customer_ref = db.collection(ofm_name) \
+                    .document(ofm_name) \
+                    .collection("customers") \
+                    .document(user_id)
+
+                customer_doc = customer_ref.get()
+
+                if not customer_doc.exists:
+
+                    messages_to_send.append({
+                        "type": "text",
+                        "text": "❌ ไม่พบข้อมูลลูกค้า"
+                    })
+
+                else:
+
+                    customer_data = customer_doc.to_dict()
+
+                    active_order_id = customer_data.get("activeOrderId")
+
+                    print("📦 ACTIVE ORDER:", active_order_id)
+
+                    if not active_order_id:
+
+                        messages_to_send.append({
+                            "type": "text",
+                            "text": "🛒 ยังไม่มีสินค้าในตะกร้า"
+                        })
+
+                    else:
+
+                        items_ref = (
+                            customer_ref
+                            .collection("orders")
+                            .document(active_order_id)
+                            .collection("items")
+                            .stream()
+                        )
+
+                        items = []
+
+                        for d in items_ref:
+
+                            data = d.to_dict()
+
+                            items.append({
+
+                                "ItemId": d.id,
+                                "ProductName": data.get("productname"),
+                                "ProductDetail": data.get("dataproduct"),
+                                "Price": data.get("priceproduct"),
+                                "numberproduct": data.get("numberproduct"),
+                                "imageurl": data.get("image_url"),
+                                "Partnershop": data.get("Partnershop")
+
+                            })
+
+                        if items:
+
+                            messages_to_send.append(
+                                build_flex_order_items(items)
+                            )
+
+                        else:
+
+                            messages_to_send.append({
+                                "type": "text",
+                                "text": "🛒 ยังไม่มีสินค้าในตะกร้า"
+                            })
+
+            # ==================================================
+            # UNKNOWN
             # ==================================================
             else:
-
-                print("❌ UNKNOWN COMMAND")
 
                 messages_to_send.append({
                     "type": "text",
@@ -823,12 +1075,9 @@ def webhook():
                 })
 
             # ==================================================
-            # REPLY TO LINE
+            # REPLY
             # ==================================================
             if messages_to_send:
-
-                print("📤 REPLY:")
-                print(json.dumps(messages_to_send, ensure_ascii=False))
 
                 response = requests.post(
                     "https://api.line.me/v2/bot/message/reply",
@@ -839,8 +1088,8 @@ def webhook():
                     }
                 )
 
-                print("📨 LINE STATUS:", response.status_code)
-                print("📨 LINE RESPONSE:", response.text)
+                print("📨 STATUS:", response.status_code)
+                print("📨 RESPONSE:", response.text)
 
         return "OK", 200
 
@@ -851,7 +1100,6 @@ def webhook():
         traceback.print_exc()
 
         return "ERROR", 500
-
 #======================line OA สร้าง register ===============================
 #------------ Flask รับข้อมูลจาก HTML แล้วบันทึกลง firebase ------------------
 
