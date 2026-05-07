@@ -275,9 +275,9 @@ def handle_order_command(ofm_name, user_id, parts):
         priceproduct = parts[3].strip() if len(parts) > 3 else "0"
         
         # ส่วนที่ตัดออกจากข้อความแชท ให้ตั้งค่าเริ่มต้นไว้ หรือดึงจาก DB ในอนาคต
-        dataproduct  = "" 
-        image_url    = "" 
-        partnershop  = "ร้านค้าทั่วไป"
+        dataproduct  = parts[4].strip() if len(parts) > 4 else "ไม่มีข้อมูลสินค้า"
+        image_url    = parts[5].strip() if len(parts) > 5 else "ไม่มีรูปภาพ"
+        partnershop  = parts[6].strip() if len(parts) > 6 else "ไม่มีร้านค้า"
 
         customer_ref = db.collection(ofm_name).document(ofm_name).collection("customers").document(user_id)
         
@@ -474,9 +474,9 @@ def build_flex_products(ofm_name, products):
                                     "type": "postback",
                                     "label": "🛒 สั่งซื้อ",
                                     # ✅ เก็บ image_url ไว้ใน data ของ postback (ลูกค้าไม่เห็น)
-                                    "data": f"{ofm_name}|order|{product_name}|{product_price}|{image_url}",
+                                    "data": f"{ofm_name}|order|{product_name}|{product_price}|{p.get("dataproduct", "-")}|{image_url}|{p.get("partnershop", "-")}",
                                     # ✅ แสดงข้อความสวยๆ ในห้องแชทแทนรหัสระบบ
-                                    "displayText": f"สั่งซื้อ {product_name}"
+                                    "displayText": f"สั่งซื้อ {product_name}" 
                                 }
                             }
                         ]
