@@ -279,12 +279,18 @@ def handle_order_command(ofm_name, user_id, parts):
         image_url    = parts[4].strip() if len(parts) > 4 else ""
 
         dataproduct = parts[5].strip() if len(parts) > 5 else "-"
+        partnershop = parts[6].strip() if len(parts) > 6 else "ร้านค้าทั่วไป"
+        mode = parts[7].strip() if len(parts) > 7 else "-"
+        name_ofm = parts[8].strip() if len(parts) > 8 else "-"
         partnershop = "ร้านค้าทั่วไป"
 
         print("🛒 PRODUCT:", productname)
         print("💰 PRICE:", priceproduct)
         print("🖼️ IMAGE:", image_url)
         print("📄 DATA:", dataproduct)
+        print("🏪 PARTNERSHOP:", partnershop)
+        print("🏷️ MODE:", mode)
+        print("🏷️ NAME_OFM:", name_ofm)
 
         # ==================================================
         # CUSTOMER
@@ -332,6 +338,8 @@ def handle_order_command(ofm_name, user_id, parts):
             "Partnershop": partnershop,
             "numberproduct": 1,
             "status": "draft",
+            "mode": mode,
+            "name_ofm": name_ofm,
             "created_at": datetime.utcnow()
         })
 
@@ -456,6 +464,9 @@ def build_flex_products(ofm_name, products):
             product_price = p.get("priceproduct", "-")
             image_url = p.get("image_url", "")
             dataproduct = p.get("dataproduct", "-")
+            partnershop = p.get("partnershop", "-")
+            mode = p.get("mode", "-")
+            name_ofm = p.get("name_ofm", "-")
 
             contents.append({
                 "type": "box",
@@ -509,7 +520,7 @@ def build_flex_products(ofm_name, products):
                                     "type": "postback",
                                     "label": "🛒 สั่งซื้อ",
                                     # ✅ เก็บ image_url ไว้ใน data ของ postback (ลูกค้าไม่เห็น)
-                                    "data": f"{ofm_name}|order|{product_name}|{product_price}|{image_url}|{dataproduct}",
+                                    "data": f"{ofm_name}|order|{product_name}|{product_price}|{image_url}|{dataproduct}|{partnershop}|{mode}|{name_ofm}",
                                     # ✅ แสดงข้อความสวยๆ ในห้องแชทแทนรหัสระบบ
                                     "displayText": f"สั่งซื้อ {product_name}"
                                 }
