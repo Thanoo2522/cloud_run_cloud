@@ -667,7 +667,7 @@ def webhook():
                     else "❌ ระบบยังไม่พร้อม"
                 )
 
-                requests.post(
+                response = requests.post(
                     "https://api.line.me/v2/bot/message/reply",
                     headers=headers,
                     json={
@@ -680,6 +680,9 @@ def webhook():
                         ]
                     }
                 )
+
+                print("📨 REGISTER STATUS:", response.status_code)
+                print("📨 REGISTER RESPONSE:", response.text)
 
                 continue
 
