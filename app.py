@@ -206,37 +206,58 @@ def get_config_api(ofm):
  # ===============================================================
 # 1. ฟังก์ชันสร้าง Flex Message จากรายชื่อหมวดหมู่ (Items)
 # ===============================================================
-def build_flex_category(ofm_name,items):
+def build_flex_category(ofm_name, items):
+
     bubbles = []
-    
-    # แบ่งกลุ่มหมวดหมู่ทีละ 4 รายการต่อ 1 Bubble (การ์ด 1 ใบ)
-    # ถ้ามี 40 รายการ จะได้ 10 Bubble พอดีตามขีดจำกัดของ LINE
+
+    # แบ่งกลุ่มหมวดหมู่ทีละ 4 รายการต่อ 1 Bubble
     for i in range(0, len(items), 4):
+
         chunk = items[i:i+4]
+
         buttons = []
-        
+
         for item in chunk:
+
             buttons.append({
+
                 "type": "button",
-                "style": "secondary",
+
+                # =========================
+                # สีปุ่ม
+                # =========================
+                "style": "primary",
+                "color": "#FF9800",   # สีส้ม
+
                 "height": "sm",
                 "margin": "xs",
+
                 "action": {
+
                     "type": "postback",
-                    "label": item,           # ชื่อหมวดหมู่ที่แสดงบนปุ่ม
-                   # "text": f"{ofm_name}|mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
+
+                    "label": item,
+
                     "data": f"{ofm_name}|mode|{item}",
+
                     "displayText": f"เลือกหมวดสินค้า:{item}"
                 }
             })
-            
+
         bubbles.append({
+
             "type": "bubble",
-            "size": "kilo", # ขนาดกำลังดีสำหรับการสไลด์แนวนอน
+
+            "size": "kilo",
+
             "body": {
+
                 "type": "box",
+
                 "layout": "vertical",
+
                 "contents": [
+
                     {
                         "type": "text",
                         "text": "📦 เลือกหมวดหมู่",
@@ -244,28 +265,37 @@ def build_flex_category(ofm_name,items):
                         "size": "md",
                         "color": "#0509F4"
                     },
+
                     {
                         "type": "box",
                         "layout": "vertical",
+
                         "contents": buttons,
-                        "color": "#faba0a",
+
                         "margin": "md",
                         "spacing": "sm"
                     }
+
                 ],
+
                 "paddingAll": "20px"
             }
         })
-        
-        # ป้องกัน Error หากข้อมูลในอนาคตเกิน 40 (LINE รับได้สูงสุด 10-12 bubbles)
+
+        # LINE FLEX LIMIT
         if len(bubbles) >= 10:
             break
 
     return {
+
         "type": "flex",
+
         "altText": "กรุณาเลือกหมวดหมู่สินค้า",
+
         "contents": {
+
             "type": "carousel",
+
             "contents": bubbles
         }
     }
