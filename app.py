@@ -562,43 +562,37 @@ def build_flex_products(ofm_name, products):
 def build_flex_order_items(items):
 
     bubbles = []
+
     grand_total = 0
 
     # =====================================================
-    # แบ่ง 2 รายการต่อ 1 bubble
+    # แบ่ง 4 รายการต่อ 1 bubble
     # =====================================================
     for i in range(0, len(items), 4):
 
         chunk = items[i:i+4]
 
         contents = []
+
         bubble_total = 0
 
-        # =====================================================
-        # LOOP ITEM
-        # =====================================================
         for item in chunk:
 
             product_name = str(item.get("ProductName", "-"))
             product_detail = str(item.get("ProductDetail", "-"))
             product_id = str(item.get("ProductID", "0"))
-            image_url = str(item.get("imageurl", ""))
 
-            # =========================
-            # PRICE
-            # =========================
             try:
                 price = int(item.get("Price", 0))
             except:
                 price = 0
 
-            # =========================
-            # QTY
-            # =========================
             try:
                 qty = int(item.get("numberproduct", 1))
             except:
                 qty = 1
+
+            image_url = str(item.get("imageurl", ""))
 
             subtotal = price * qty
 
@@ -615,9 +609,9 @@ def build_flex_order_items(items):
                 "spacing": "md",
                 "margin": "md",
                 "paddingAll": "10px",
-                "cornerRadius": "12px",
+                "cornerRadius": "md",
                 "borderWidth": "1px",
-                "borderColor": "#DDDDDD",
+                "borderColor": "#E5E5E5",
 
                 "contents": [
 
@@ -627,10 +621,9 @@ def build_flex_order_items(items):
                     {
                         "type": "image",
                         "url": image_url,
-                        "size": "80px",
+                        "size": "sm",
                         "aspectMode": "cover",
                         "aspectRatio": "1:1",
-                        "cornerRadius": "8px",
                         "flex": 2
                     },
 
@@ -646,27 +639,25 @@ def build_flex_order_items(items):
                         "contents": [
 
                             # =========================
-                            # NAME
+                            # PRODUCT NAME
                             # =========================
                             {
                                 "type": "text",
                                 "text": product_name,
                                 "weight": "bold",
                                 "size": "sm",
-                                "wrap": True,
-                                "maxLines": 2
+                                "wrap": True
                             },
 
                             # =========================
-                            # DETAIL
+                            # PRODUCT DETAIL
                             # =========================
                             {
                                 "type": "text",
                                 "text": product_detail,
                                 "size": "xs",
                                 "color": "#999999",
-                                "wrap": True,
-                                "maxLines": 2
+                                "wrap": True
                             },
 
                             # =========================
@@ -674,9 +665,9 @@ def build_flex_order_items(items):
                             # =========================
                             {
                                 "type": "text",
-                                "text": f"฿ {price:,} x {qty}",
+                                "text": f"฿ {price} x {qty}",
                                 "size": "sm",
-                                "color": "#FF6B00"
+                                "color": "#FF0000"
                             },
 
                             # =========================
@@ -684,14 +675,64 @@ def build_flex_order_items(items):
                             # =========================
                             {
                                 "type": "text",
-                                "text": f"รวม ฿ {subtotal:,}",
+                                "text": f"รวม ฿ {subtotal}",
                                 "size": "sm",
                                 "weight": "bold",
-                                "color": "#00AA55"
+                                "color": "#1DB446"
+                            },
+
+                            # =========================
+                            # BUTTON - +
+                            # =========================
+                            {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "spacing": "sm",
+                                "margin": "md",
+
+                                "contents": [
+
+                                    {
+                                        "type": "button",
+                                        "style": "secondary",
+                                        "flex": 1,
+
+                                        "action": {
+                                            "type": "postback",
+                                            "label": "-",
+                                            "data": f"cart_minus:{product_id}"
+                                        }
+                                    },
+
+                                    {
+                                        "type": "button",
+                                        "style": "primary",
+                                        "flex": 1,
+
+                                        "action": {
+                                            "type": "postback",
+                                            "label": "+",
+                                            "data": f"cart_plus:{product_id}"
+                                        }
+                                    }
+
+                                ]
+                            },
+
+                            # =========================
+                            # DELETE BUTTON
+                            # =========================
+                            {
+                                "type": "button",
+                                "style": "secondary",
+                                "margin": "sm",
+
+                                "action": {
+                                    "type": "postback",
+                                    "label": "ลบสินค้า",
+                                    "data": f"cart_delete:{product_id}"
+                                }
                             }
-
-
-
 
                         ]
                     }
@@ -700,18 +741,14 @@ def build_flex_order_items(items):
             })
 
         # =====================================================
-        # SEPARATOR
+        # TOTAL ต่อ bubble
         # =====================================================
         contents.append({
             "type": "separator",
             "margin": "lg"
         })
 
-        # =====================================================
-        # BUBBLE TOTAL
-        # =====================================================
         contents.append({
-
             "type": "box",
             "layout": "horizontal",
             "margin": "lg",
@@ -727,7 +764,7 @@ def build_flex_order_items(items):
 
                 {
                     "type": "text",
-                    "text": f"฿ {bubble_total:,}",
+                    "text": f"฿ {bubble_total}",
                     "weight": "bold",
                     "size": "md",
                     "align": "end",
@@ -738,18 +775,17 @@ def build_flex_order_items(items):
         })
 
         # =====================================================
-        # ITEM BUBBLE
+        # BUBBLE
         # =====================================================
         bubbles.append({
 
             "type": "bubble",
-            "size": "mega",
+            "size": "giga",
 
             "body": {
 
                 "type": "box",
                 "layout": "vertical",
-                "paddingAll": "15px",
 
                 "contents": [
 
@@ -768,18 +804,18 @@ def build_flex_order_items(items):
         })
 
         # =====================================================
-        # FLEX LIMIT
+        # LINE FLEX LIMIT
         # =====================================================
         if len(bubbles) >= 9:
             break
 
     # =====================================================
-    # SUMMARY BUBBLE (bubble สุดท้าย)
+    # SUMMARY BUBBLE
     # =====================================================
     bubbles.append({
 
         "type": "bubble",
-        "size": "mega",
+        "size": "giga",
 
         "body": {
 
@@ -789,12 +825,9 @@ def build_flex_order_items(items):
 
             "contents": [
 
-                # =========================
-                # TITLE
-                # =========================
                 {
                     "type": "text",
-                    "text": "📦 สรุปรายการสั่งซื้อ",
+                    "text": "📦 สรุปคำสั่งซื้อ",
                     "weight": "bold",
                     "size": "xl",
                     "color": "#1DB446"
@@ -805,9 +838,6 @@ def build_flex_order_items(items):
                     "margin": "lg"
                 },
 
-                # =========================
-                # GRAND TOTAL
-                # =========================
                 {
                     "type": "box",
                     "layout": "horizontal",
@@ -824,7 +854,7 @@ def build_flex_order_items(items):
 
                         {
                             "type": "text",
-                            "text": f"฿ {grand_total:,}",
+                            "text": f"฿ {grand_total}",
                             "weight": "bold",
                             "size": "xl",
                             "align": "end",
