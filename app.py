@@ -226,7 +226,7 @@ def build_flex_category(ofm_name,items):
                     "label": item,           # ชื่อหมวดหมู่ที่แสดงบนปุ่ม
                    # "text": f"{ofm_name}|mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
                     "data": f"{ofm_name}|mode|{item}",
-                    "displayText": f"เลือกร้านค้าหมวด:{item}"
+                    "displayText": f"เลือกหมวดสินค้า:{item}"
                 }
             })
             
@@ -408,7 +408,7 @@ def build_flex_partners(ofm_name,modename, partners):
                     "label": p_name,
                     #"text": f"{ofm_name}|partner|{modename}|{p_name}" 
                     "data": f"{ofm_name}|partner|{modename}|{p_name}",
-                    "displayText": f"เลือกเมนูร้านค้า ร้าน:{p_name}"
+                    "displayText": f"เลือกร้านค้า:{p_name}"
                 }
             })
         bubbles.append({
@@ -529,7 +529,7 @@ def build_flex_products(ofm_name, products):
                                     # ✅ เก็บ image_url ไว้ใน data ของ postback (ลูกค้าไม่เห็น)
                                     "data": f"{ofm_name}|order|{product_name}|{product_price}|{image_url}|{dataproduct}|{partnershop}|{mode}|{name_ofm}",
                                     # ✅ แสดงข้อความสวยๆ ในห้องแชทแทนรหัสระบบ
-                                    "displayText": f"สั่งซื้อ {product_name}"
+                                    "displayText": f"สั่งซื้อ :{product_name}"
                                 }
                             }
                         ]
@@ -591,9 +591,6 @@ def build_flex_order_items(items):
             product_name = str(item.get("ProductName", "-"))
             product_detail = str(item.get("ProductDetail", "-"))
 
-            # =================================================
-            # IMPORTANT
-            # =================================================
             order_id = str(item.get("OrderId", "0"))
             item_id = str(item.get("ItemId", "0"))
 
@@ -626,7 +623,7 @@ def build_flex_order_items(items):
                 "paddingAll": "10px",
                 "cornerRadius": "md",
                 "borderWidth": "1px",
-                "borderColor": "#E5E5E5",
+                "borderColor": "#f70727",
 
                 "contents": [
 
@@ -761,7 +758,7 @@ def build_flex_order_items(items):
                 ]
             })
 
-         # =====================================================
+        # =====================================================
         # ITEM BUBBLE
         # =====================================================
         bubbles.append({
@@ -799,6 +796,59 @@ def build_flex_order_items(items):
     # =====================================================
     # SUMMARY BUBBLE
     # =====================================================
+    summary_contents = []
+
+    # =========================================
+    # สร้างรายการสินค้าใน SUMMARY
+    # =========================================
+    for index, item in enumerate(items, start=1):
+
+        product_name = str(item.get("ProductName", "-"))
+
+        try:
+            price = int(item.get("Price", 0))
+        except:
+            price = 0
+
+        try:
+            qty = int(item.get("numberproduct", 1))
+        except:
+            qty = 1
+
+        subtotal = price * qty
+
+        summary_contents.append({
+
+            "type": "box",
+            "layout": "horizontal",
+            "margin": "md",
+
+            "contents": [
+
+                {
+                    "type": "text",
+                    "text": f"{index}. {product_name} x{qty}",
+                    "size": "sm",
+                    "wrap": True,
+                    "flex": 5
+                },
+
+                {
+                    "type": "text",
+                    "text": f"฿ {subtotal:,}",
+                    "size": "sm",
+                    "align": "end",
+                    "weight": "bold",
+                    "color": "#FF0000",
+                    "flex": 2
+                }
+
+            ]
+        })
+
+    # =========================================
+    # ADD SUMMARY BUBBLE
+    # =========================================
     bubbles.append({
 
         "type": "bubble",
@@ -812,6 +862,9 @@ def build_flex_order_items(items):
 
             "contents": [
 
+                # =========================================
+                # TITLE
+                # =========================================
                 {
                     "type": "text",
                     "text": "📦 สรุปคำสั่งซื้อ",
@@ -823,6 +876,19 @@ def build_flex_order_items(items):
                 {
                     "type": "separator",
                     "margin": "lg"
+                },
+
+                # =========================================
+                # LIST ITEM
+                # =========================================
+                *summary_contents,
+
+                # =========================================
+                # TOTAL
+                # =========================================
+                {
+                    "type": "separator",
+                    "margin": "xl"
                 },
 
                 {
@@ -851,9 +917,9 @@ def build_flex_order_items(items):
                     ]
                 },
 
-                # =================================================
-                # CONFIRM BUTTON
-                # =================================================
+                # =========================================
+                # BUTTON CONFIRM
+                # =========================================
                 {
                     "type": "button",
                     "style": "primary",
