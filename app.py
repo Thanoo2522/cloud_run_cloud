@@ -559,6 +559,9 @@ def build_flex_products(ofm_name, products):
 # รองรับ 4 รายการ / bubble
 # สูงสุด 10 bubble = 40 รายการ
 # =========================================================
+# =========================================================
+# BUILD FLEX ORDER ITEMS
+# =========================================================
 def build_flex_order_items(items):
 
     bubbles = []
@@ -576,11 +579,19 @@ def build_flex_order_items(items):
 
         bubble_total = 0
 
+        # =====================================================
+        # LOOP ITEM
+        # =====================================================
         for item in chunk:
 
             product_name = str(item.get("ProductName", "-"))
             product_detail = str(item.get("ProductDetail", "-"))
-            product_id = str(item.get("ProductID", "0"))
+
+            # =================================================
+            # IMPORTANT
+            # =================================================
+            order_id = str(item.get("OrderId", "0"))
+            item_id = str(item.get("ItemId", "0"))
 
             try:
                 price = int(item.get("Price", 0))
@@ -665,7 +676,7 @@ def build_flex_order_items(items):
                             # =========================
                             {
                                 "type": "text",
-                                "text": f"฿ {price} x {qty}",
+                                "text": f"฿ {price:,} x {qty}",
                                 "size": "sm",
                                 "color": "#FF0000"
                             },
@@ -675,7 +686,7 @@ def build_flex_order_items(items):
                             # =========================
                             {
                                 "type": "text",
-                                "text": f"รวม ฿ {subtotal}",
+                                "text": f"รวม ฿ {subtotal:,}",
                                 "size": "sm",
                                 "weight": "bold",
                                 "color": "#1DB446"
@@ -692,6 +703,9 @@ def build_flex_order_items(items):
 
                                 "contents": [
 
+                                    # =====================
+                                    # MINUS
+                                    # =====================
                                     {
                                         "type": "button",
                                         "style": "secondary",
@@ -700,10 +714,13 @@ def build_flex_order_items(items):
                                         "action": {
                                             "type": "postback",
                                             "label": "-",
-                                            "data": f"cart_minus:{product_id}"
+                                            "data": f"cart_minus:{order_id}:{item_id}"
                                         }
                                     },
 
+                                    # =====================
+                                    # PLUS
+                                    # =====================
                                     {
                                         "type": "button",
                                         "style": "primary",
@@ -712,7 +729,7 @@ def build_flex_order_items(items):
                                         "action": {
                                             "type": "postback",
                                             "label": "+",
-                                            "data": f"cart_plus:{product_id}"
+                                            "data": f"cart_plus:{order_id}:{item_id}"
                                         }
                                     }
 
@@ -730,7 +747,7 @@ def build_flex_order_items(items):
                                 "action": {
                                     "type": "postback",
                                     "label": "ลบสินค้า",
-                                    "data": f"cart_delete:{product_id}"
+                                    "data": f"cart_delete:{order_id}:{item_id}"
                                 }
                             }
 
@@ -741,14 +758,16 @@ def build_flex_order_items(items):
             })
 
         # =====================================================
-        # TOTAL ต่อ bubble
+        # TOTAL PER BUBBLE
         # =====================================================
         contents.append({
+
             "type": "separator",
             "margin": "lg"
         })
 
         contents.append({
+
             "type": "box",
             "layout": "horizontal",
             "margin": "lg",
@@ -764,7 +783,7 @@ def build_flex_order_items(items):
 
                 {
                     "type": "text",
-                    "text": f"฿ {bubble_total}",
+                    "text": f"฿ {bubble_total:,}",
                     "weight": "bold",
                     "size": "md",
                     "align": "end",
@@ -775,7 +794,7 @@ def build_flex_order_items(items):
         })
 
         # =====================================================
-        # BUBBLE
+        # ITEM BUBBLE
         # =====================================================
         bubbles.append({
 
@@ -804,7 +823,7 @@ def build_flex_order_items(items):
         })
 
         # =====================================================
-        # LINE FLEX LIMIT
+        # LIMIT
         # =====================================================
         if len(bubbles) >= 9:
             break
@@ -854,7 +873,7 @@ def build_flex_order_items(items):
 
                         {
                             "type": "text",
-                            "text": f"฿ {grand_total}",
+                            "text": f"฿ {grand_total:,}",
                             "weight": "bold",
                             "size": "xl",
                             "align": "end",
@@ -864,9 +883,9 @@ def build_flex_order_items(items):
                     ]
                 },
 
-                # =========================
+                # =================================================
                 # CONFIRM BUTTON
-                # =========================
+                # =================================================
                 {
                     "type": "button",
                     "style": "primary",
@@ -933,6 +952,8 @@ def webhook():
             reply_token = event.get("replyToken")
             event_type = event.get("type")
 
+            user_message = ""
+
             # ==================================================
             # MESSAGE
             # ==================================================
@@ -954,6 +975,201 @@ def webhook():
                 continue
 
             print("💬 USER MESSAGE:", user_message)
+
+            # ==================================================
+            # POSTBACK CART
+            # cart_minus:order_id:item_id
+            # cart_plus:order_id:item_id
+            # cart_delete:order_id:item_id
+            # ==================================================
+            if user_message.startswith("cart_"):
+
+                try:
+
+                    parts_cart = user_message.split(":")
+
+                    action = parts_cart[0]
+                    order_id = parts_cart[1]
+                    item_id = parts_cart[2]
+
+                    print("🛒 ACTION:", action)
+                    print("📦 ORDER ID:", order_id)
+                    print("🧾 ITEM ID:", item_id)
+
+                    # ==========================================
+                    # หา OFM จาก customer
+                    # ==========================================
+                    ofm_name = body_json.get("destination", "")
+
+                    # ถ้า destination เป็น channel id
+                    # แนะนำให้ส่ง ofm ไปใน data ด้วยในอนาคต
+                    # เช่น:
+                    # cart_plus:ofm:order:item
+
+                    # ==========================================
+                    # SEARCH CUSTOMER
+                    # ==========================================
+                    found = False
+
+                    collections = db.collections()
+
+                    for col in collections:
+
+                        try:
+
+                            customer_ref = db.collection(col.id) \
+                                .document(col.id) \
+                                .collection("customers") \
+                                .document(user_id)
+
+                            customer_doc = customer_ref.get()
+
+                            if customer_doc.exists:
+
+                                ofm_name = col.id
+                                found = True
+
+                                break
+
+                        except:
+                            pass
+
+                    if not found:
+
+                        return "OK", 200
+
+                    # ==========================================
+                    # CONFIG
+                    # ==========================================
+                    config = get_line_config(ofm_name)
+
+                    if not config:
+                        return "OK", 200
+
+                    access_token = config.get("access_token")
+
+                    headers = {
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {access_token}"
+                    }
+
+                    # ==========================================
+                    # ITEM REF
+                    # ==========================================
+                    item_ref = (
+                        db.collection(ofm_name)
+                        .document(ofm_name)
+                        .collection("customers")
+                        .document(user_id)
+                        .collection("orders")
+                        .document(order_id)
+                        .collection("items")
+                        .document(item_id)
+                    )
+
+                    item_doc = item_ref.get()
+
+                    if not item_doc.exists:
+
+                        requests.post(
+                            "https://api.line.me/v2/bot/message/reply",
+                            headers=headers,
+                            json={
+                                "replyToken": reply_token,
+                                "messages": [
+                                    {
+                                        "type": "text",
+                                        "text": "❌ ไม่พบสินค้า"
+                                    }
+                                ]
+                            }
+                        )
+
+                        continue
+
+                    item_data = item_doc.to_dict()
+
+                    # ==========================================
+                    # QTY
+                    # ==========================================
+                    try:
+                        qty = int(item_data.get("numberproduct", 1))
+                    except:
+                        qty = 1
+
+                    # ==========================================
+                    # MINUS
+                    # ==========================================
+                    if action == "cart_minus":
+
+                        new_qty = qty - 1
+
+                        if new_qty <= 0:
+
+                            item_ref.delete()
+
+                            msg = "🗑️ ลบสินค้าแล้ว"
+
+                        else:
+
+                            item_ref.update({
+                                "numberproduct": new_qty
+                            })
+
+                            msg = f"➖ ลดจำนวนเหลือ {new_qty}"
+
+                    # ==========================================
+                    # PLUS
+                    # ==========================================
+                    elif action == "cart_plus":
+
+                        new_qty = qty + 1
+
+                        item_ref.update({
+                            "numberproduct": new_qty
+                        })
+
+                        msg = f"➕ เพิ่มจำนวนเป็น {new_qty}"
+
+                    # ==========================================
+                    # DELETE
+                    # ==========================================
+                    elif action == "cart_delete":
+
+                        item_ref.delete()
+
+                        msg = "🗑️ ลบสินค้าแล้ว"
+
+                    else:
+
+                        msg = "❌ ไม่รู้จักคำสั่ง"
+
+                    # ==========================================
+                    # REPLY
+                    # ==========================================
+                    requests.post(
+                        "https://api.line.me/v2/bot/message/reply",
+                        headers=headers,
+                        json={
+                            "replyToken": reply_token,
+                            "messages": [
+                                {
+                                    "type": "text",
+                                    "text": msg
+                                }
+                            ]
+                        }
+                    )
+
+                    continue
+
+                except Exception as e:
+
+                    print("❌ CART ERROR:", str(e))
+
+                    traceback.print_exc()
+
+                    continue
 
             # ==================================================
             # SPLIT
@@ -1101,8 +1317,6 @@ def webhook():
 
                 modename = parts[2].strip() if len(parts) > 2 else ""
 
-                print("📂 MODENAME:", modename)
-
                 partners = get_partners_direct(ofm_name)
 
                 if partners:
@@ -1130,16 +1344,11 @@ def webhook():
                 modename = parts[2].strip() if len(parts) > 2 else ""
                 shopname = parts[3].strip() if len(parts) > 3 else ""
 
-                print("🏪 SHOPNAME:", shopname)
-                print("📂 MODENAME:", modename)
-
                 products = get_products(
                     ofm_name,
                     shopname,
                     modename
                 )
-
-                print("🛒 PRODUCTS:", len(products))
 
                 if products:
 
@@ -1180,9 +1389,6 @@ def webhook():
 
                 else:
 
-                    # ============================================
-                    # ดึง ORDER ทั้งหมด
-                    # ============================================
                     orders_ref = customer_ref \
                         .collection("orders") \
                         .stream()
@@ -1193,11 +1399,6 @@ def webhook():
 
                         order_id = order_doc.id
 
-                        print("📦 ORDER ID:", order_id)
-
-                        # ========================================
-                        # ดึง ITEMS ของแต่ละ ORDER
-                        # ========================================
                         items_ref = (
                             customer_ref
                             .collection("orders")
@@ -1213,11 +1414,9 @@ def webhook():
                             items.append({
 
                                 "ItemId": d.id,
-
                                 "OrderId": order_id,
 
                                 "ProductName": data.get("productname"),
-
                                 "ProductDetail": data.get("dataproduct"),
 
                                 "Price": data.get("priceproduct"),
@@ -1230,11 +1429,6 @@ def webhook():
 
                             })
 
-                    print("🛒 TOTAL ITEMS:", len(items))
-
-                    # ============================================
-                    # SEND FLEX
-                    # ============================================
                     if items:
 
                         messages_to_send.append(
@@ -1253,8 +1447,6 @@ def webhook():
             # ==================================================
             else:
 
-                print("❌ UNKNOWN COMMAND")
-
                 messages_to_send.append({
                     "type": "text",
                     "text": f"❗ ไม่รู้จักคำสั่ง: {command}"
@@ -1264,9 +1456,6 @@ def webhook():
             # REPLY
             # ==================================================
             if messages_to_send:
-
-                print("📤 REPLY:")
-                print(json.dumps(messages_to_send, ensure_ascii=False))
 
                 response = requests.post(
                     "https://api.line.me/v2/bot/message/reply",
