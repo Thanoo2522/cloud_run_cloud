@@ -757,43 +757,7 @@ def build_flex_order_items(items):
                 ]
             })
 
-        # =====================================================
-        # TOTAL PER BUBBLE
-        # =====================================================
-        contents.append({
-
-            "type": "separator",
-            "margin": "lg"
-        })
-
-        contents.append({
-
-            "type": "box",
-            "layout": "horizontal",
-            "margin": "lg",
-
-            "contents": [
-
-                {
-                    "type": "text",
-                    "text": "รวมชุดนี้",
-                    "weight": "bold",
-                    "size": "md"
-                },
-
-                {
-                    "type": "text",
-                    "text": f"฿ {bubble_total:,}",
-                    "weight": "bold",
-                    "size": "md",
-                    "align": "end",
-                    "color": "#FF0000"
-                }
-
-            ]
-        })
-
-        # =====================================================
+         # =====================================================
         # ITEM BUBBLE
         # =====================================================
         bubbles.append({
@@ -997,19 +961,10 @@ def webhook():
                     print("🧾 ITEM ID:", item_id)
 
                     # ==========================================
-                    # หา OFM จาก customer
-                    # ==========================================
-                    ofm_name = body_json.get("destination", "")
-
-                    # ถ้า destination เป็น channel id
-                    # แนะนำให้ส่ง ofm ไปใน data ด้วยในอนาคต
-                    # เช่น:
-                    # cart_plus:ofm:order:item
-
-                    # ==========================================
                     # SEARCH CUSTOMER
                     # ==========================================
                     found = False
+                    ofm_name = ""
 
                     collections = db.collections()
 
@@ -1036,7 +991,9 @@ def webhook():
 
                     if not found:
 
-                        return "OK", 200
+                        print("❌ CUSTOMER NOT FOUND")
+
+                        continue
 
                     # ==========================================
                     # CONFIG
@@ -1044,7 +1001,10 @@ def webhook():
                     config = get_line_config(ofm_name)
 
                     if not config:
-                        return "OK", 200
+
+                        print("❌ CONFIG NOT FOUND")
+
+                        continue
 
                     access_token = config.get("access_token")
 
@@ -1054,21 +1014,31 @@ def webhook():
                     }
 
                     # ==========================================
-                    # ITEM REF
+                    # ORDER REF
                     # ==========================================
-                    item_ref = (
+                    order_ref = (
                         db.collection(ofm_name)
                         .document(ofm_name)
                         .collection("customers")
                         .document(user_id)
                         .collection("orders")
                         .document(order_id)
+                    )
+
+                    # ==========================================
+                    # ITEM REF
+                    # ==========================================
+                    item_ref = (
+                        order_ref
                         .collection("items")
                         .document(item_id)
                     )
 
                     item_doc = item_ref.get()
 
+                    # ==========================================
+                    # ITEM NOT FOUND
+                    # ==========================================
                     if not item_doc.exists:
 
                         requests.post(
@@ -1102,15 +1072,14 @@ def webhook():
                     # ==========================================
                     if action == "cart_minus":
 
-                        new_qty = qty - 1
+                        # ถ้ามี 1 ชิ้นอยู่แล้ว ไม่ต้องลด
+                        if qty <= 1:
 
-                        if new_qty <= 0:
-
-                            item_ref.delete()
-
-                            msg = "🗑️ ลบสินค้าแล้ว"
+                            msg = "⚠️ สินค้าต้องมีอย่างน้อย 1 ชิ้น"
 
                         else:
+
+                            new_qty = qty - 1
 
                             item_ref.update({
                                 "numberproduct": new_qty
@@ -1136,10 +1105,34 @@ def webhook():
                     # ==========================================
                     elif action == "cart_delete":
 
+                        # ลบ item
                         item_ref.delete()
 
-                        msg = "🗑️ ลบสินค้าแล้ว"
+                        # ======================================
+                        # CHECK ITEMS LEFT
+                        # ======================================
+                        items_left = list(
+                            order_ref
+                            .collection("items")
+                            .stream()
+                        )
 
+                        # ======================================
+                        # ถ้าไม่มีสินค้าแล้ว -> ลบ order
+                        # ======================================
+                        if len(items_left) == 0:
+
+                            order_ref.delete()
+
+                            msg = "🗑️ ลบสินค้าและคำสั่งซื้อแล้ว"
+
+                        else:
+
+                            msg = "🗑️ ลบสินค้าแล้ว"
+
+                    # ==========================================
+                    # UNKNOWN
+                    # ==========================================
                     else:
 
                         msg = "❌ ไม่รู้จักคำสั่ง"
@@ -1172,7 +1165,7 @@ def webhook():
                     continue
 
             # ==================================================
-            # SPLIT
+            # SPLIT MESSAGE
             # ==================================================
             parts = user_message.split("|")
 
