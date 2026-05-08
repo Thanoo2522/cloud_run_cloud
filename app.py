@@ -567,9 +567,9 @@ def build_flex_order_items(items):
     # =====================================================
     # แบ่ง 2 รายการต่อ 1 bubble
     # =====================================================
-    for i in range(0, len(items), 2):
+    for i in range(0, len(items), 4):
 
-        chunk = items[i:i+2]
+        chunk = items[i:i+4]
 
         contents = []
         bubble_total = 0
@@ -688,60 +688,10 @@ def build_flex_order_items(items):
                                 "size": "sm",
                                 "weight": "bold",
                                 "color": "#00AA55"
-                            },
-
-                            # =========================
-                            # BUTTON - +
-                            # =========================
-                            {
-                                "type": "box",
-                                "layout": "horizontal",
-                                "spacing": "sm",
-                                "margin": "md",
-
-                                "contents": [
-
-                                    {
-                                        "type": "button",
-                                        "flex": 1,
-                                        "style": "secondary",
-
-                                        "action": {
-                                            "type": "postback",
-                                            "label": "-",
-                                            "data": f"cart_minus:{product_id}"
-                                        }
-                                    },
-
-                                    {
-                                        "type": "button",
-                                        "flex": 1,
-                                        "style": "primary",
-
-                                        "action": {
-                                            "type": "postback",
-                                            "label": "+",
-                                            "data": f"cart_plus:{product_id}"
-                                        }
-                                    }
-
-                                ]
-                            },
-
-                            # =========================
-                            # DELETE BUTTON
-                            # =========================
-                            {
-                                "type": "button",
-                                "style": "secondary",
-                                "margin": "sm",
-
-                                "action": {
-                                    "type": "postback",
-                                    "label": "ลบสินค้า",
-                                    "data": f"cart_delete:{product_id}"
-                                }
                             }
+
+
+
 
                         ]
                     }
