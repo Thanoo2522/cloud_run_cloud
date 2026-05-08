@@ -242,12 +242,13 @@ def build_flex_category(ofm_name,items):
                         "text": "📦 เลือกหมวดหมู่",
                         "weight": "bold",
                         "size": "md",
-                        "color": "#1DB446"
+                        "color": "#0509F4"
                     },
                     {
                         "type": "box",
                         "layout": "vertical",
                         "contents": buttons,
+                        "color": "#faba0a",
                         "margin": "md",
                         "spacing": "sm"
                     }
@@ -400,7 +401,7 @@ def build_flex_partners(ofm_name,modename, partners):
             buttons.append({
                 "type": "button",
                 "style": "primary",
-                "color": "#98c997",
+                "color": "#fa860a",
                 "height": "sm",
                 "margin": "xs",
                 "action": {
@@ -418,7 +419,7 @@ def build_flex_partners(ofm_name,modename, partners):
                 "type": "box",
                 "layout": "vertical",
                 "contents": [
-                    {"type": "text", "text": "🤝 เลือกร้านค้า", "weight": "bold", "size": "md", "color": "#008CFF"},
+                    {"type": "text", "text": f"🤝 เลือกร้านค้า:{modename}", "weight": "bold", "size": "md", "color": "#008CFF"},
                     {"type": "box", "layout": "vertical", "contents": buttons, "margin": "md", "spacing": "sm"}
                 ],
                 "paddingAll": "20px"
