@@ -224,7 +224,9 @@ def build_flex_category(ofm_name,items):
                 "action": {
                     "type": "message",
                     "label": item,           # ชื่อหมวดหมู่ที่แสดงบนปุ่ม
-                    "text": f"{ofm_name}|mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
+                   # "text": f"{ofm_name}|mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
+                    "data": f"{ofm_name}|mode|{item}",
+                    "displayText": f"เลือกร้านค้าหมวด:{item}"
                 }
             })
             
@@ -404,7 +406,9 @@ def build_flex_partners(ofm_name,modename, partners):
                 "action": {
                     "type": "message",
                     "label": p_name,
-                    "text": f"{ofm_name}|partner|{modename}|{p_name}" 
+                    #"text": f"{ofm_name}|partner|{modename}|{p_name}" 
+                    "data": f"{ofm_name}|partner|{modename}|{p_name}",
+                    "displayText": f"เลือกเมนูร้านค้า ร้าน:{p_name}"
                 }
             })
         bubbles.append({
