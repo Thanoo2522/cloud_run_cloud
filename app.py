@@ -565,24 +565,27 @@ def build_flex_order_items(items):
     grand_total = 0
 
     # =====================================================
-    # แบ่ง 4 รายการต่อ 1 bubble
+    # แบ่ง 2 รายการต่อ 1 bubble
     # =====================================================
-    for i in range(0, len(items), 4):
+    for i in range(0, len(items), 2):
 
-        chunk = items[i:i+4]
+        chunk = items[i:i+2]
 
         contents = []
         bubble_total = 0
 
+        # =====================================================
+        # LOOP ITEM
+        # =====================================================
         for item in chunk:
 
-            product_name = item.get("ProductName", "-")
-            product_detail = item.get("ProductDetail", "-")
-            product_id = item.get("ProductID", "0")
-            image_url = item.get("imageurl", "")
+            product_name = str(item.get("ProductName", "-"))
+            product_detail = str(item.get("ProductDetail", "-"))
+            product_id = str(item.get("ProductID", "0"))
+            image_url = str(item.get("imageurl", ""))
 
             # =========================
-            # ราคา
+            # PRICE
             # =========================
             try:
                 price = int(item.get("Price", 0))
@@ -590,7 +593,7 @@ def build_flex_order_items(items):
                 price = 0
 
             # =========================
-            # จำนวน
+            # QTY
             # =========================
             try:
                 qty = int(item.get("numberproduct", 1))
@@ -603,7 +606,7 @@ def build_flex_order_items(items):
             grand_total += subtotal
 
             # =====================================================
-            # CARD สินค้า
+            # ITEM CARD
             # =====================================================
             contents.append({
 
@@ -612,27 +615,28 @@ def build_flex_order_items(items):
                 "spacing": "md",
                 "margin": "md",
                 "paddingAll": "10px",
-                "cornerRadius": "md",
+                "cornerRadius": "12px",
                 "borderWidth": "1px",
-                "borderColor": "#E5E5E5",
+                "borderColor": "#DDDDDD",
 
                 "contents": [
 
-                    # =========================
-                    # รูปสินค้า
-                    # =========================
+                    # =================================================
+                    # IMAGE
+                    # =================================================
                     {
                         "type": "image",
                         "url": image_url,
-                        "size": "sm",
+                        "size": "80px",
                         "aspectMode": "cover",
                         "aspectRatio": "1:1",
+                        "cornerRadius": "8px",
                         "flex": 2
                     },
 
-                    # =========================
-                    # รายละเอียดสินค้า
-                    # =========================
+                    # =================================================
+                    # DETAIL
+                    # =================================================
                     {
                         "type": "box",
                         "layout": "vertical",
@@ -641,39 +645,53 @@ def build_flex_order_items(items):
 
                         "contents": [
 
+                            # =========================
+                            # NAME
+                            # =========================
                             {
                                 "type": "text",
                                 "text": product_name,
                                 "weight": "bold",
                                 "size": "sm",
-                                "wrap": True
+                                "wrap": True,
+                                "maxLines": 2
                             },
 
+                            # =========================
+                            # DETAIL
+                            # =========================
                             {
                                 "type": "text",
                                 "text": product_detail,
                                 "size": "xs",
                                 "color": "#999999",
-                                "wrap": True
-                            },
-
-                            {
-                                "type": "text",
-                                "text": f"฿ {price} x {qty}",
-                                "size": "sm",
-                                "color": "#FF0000"
-                            },
-
-                            {
-                                "type": "text",
-                                "text": f"รวม ฿ {subtotal}",
-                                "size": "sm",
-                                "weight": "bold",
-                                "color": "#1DB446"
+                                "wrap": True,
+                                "maxLines": 2
                             },
 
                             # =========================
-                            # ปุ่ม -   +
+                            # PRICE x QTY
+                            # =========================
+                            {
+                                "type": "text",
+                                "text": f"฿ {price:,} x {qty}",
+                                "size": "sm",
+                                "color": "#FF6B00"
+                            },
+
+                            # =========================
+                            # SUBTOTAL
+                            # =========================
+                            {
+                                "type": "text",
+                                "text": f"รวม ฿ {subtotal:,}",
+                                "size": "sm",
+                                "weight": "bold",
+                                "color": "#00AA55"
+                            },
+
+                            # =========================
+                            # BUTTON - +
                             # =========================
                             {
                                 "type": "box",
@@ -685,25 +703,25 @@ def build_flex_order_items(items):
 
                                     {
                                         "type": "button",
+                                        "flex": 1,
                                         "style": "secondary",
-                                        "height": "sm",
 
                                         "action": {
                                             "type": "postback",
                                             "label": "-",
-                                           # "data": f"cart_minus:{product_id}"
+                                            "data": f"cart_minus:{product_id}"
                                         }
                                     },
 
                                     {
                                         "type": "button",
+                                        "flex": 1,
                                         "style": "primary",
-                                        "height": "sm",
 
                                         "action": {
                                             "type": "postback",
                                             "label": "+",
-                                           # "data": f"cart_plus:{product_id}"
+                                            "data": f"cart_plus:{product_id}"
                                         }
                                     }
 
@@ -711,19 +729,17 @@ def build_flex_order_items(items):
                             },
 
                             # =========================
-                            # ปุ่ม Delete
+                            # DELETE BUTTON
                             # =========================
                             {
                                 "type": "button",
                                 "style": "secondary",
-                                "color": "#FF4444",
                                 "margin": "sm",
-                                "height": "sm",
 
                                 "action": {
                                     "type": "postback",
                                     "label": "ลบสินค้า",
-                                    #"data": f"cart_delete:{product_id}"
+                                    "data": f"cart_delete:{product_id}"
                                 }
                             }
 
@@ -734,13 +750,16 @@ def build_flex_order_items(items):
             })
 
         # =====================================================
-        # TOTAL ต่อ bubble
+        # SEPARATOR
         # =====================================================
         contents.append({
             "type": "separator",
             "margin": "lg"
         })
 
+        # =====================================================
+        # BUBBLE TOTAL
+        # =====================================================
         contents.append({
 
             "type": "box",
@@ -758,7 +777,7 @@ def build_flex_order_items(items):
 
                 {
                     "type": "text",
-                    "text": f"฿ {bubble_total}",
+                    "text": f"฿ {bubble_total:,}",
                     "weight": "bold",
                     "size": "md",
                     "align": "end",
@@ -769,17 +788,18 @@ def build_flex_order_items(items):
         })
 
         # =====================================================
-        # BUBBLE
+        # ITEM BUBBLE
         # =====================================================
         bubbles.append({
 
             "type": "bubble",
-            "size": "giga",
+            "size": "mega",
 
             "body": {
 
                 "type": "box",
                 "layout": "vertical",
+                "paddingAll": "15px",
 
                 "contents": [
 
@@ -798,10 +818,91 @@ def build_flex_order_items(items):
         })
 
         # =====================================================
-        # LINE FLEX LIMIT
+        # FLEX LIMIT
         # =====================================================
-        if len(bubbles) >= 10:
+        if len(bubbles) >= 9:
             break
+
+    # =====================================================
+    # SUMMARY BUBBLE (bubble สุดท้าย)
+    # =====================================================
+    bubbles.append({
+
+        "type": "bubble",
+        "size": "mega",
+
+        "body": {
+
+            "type": "box",
+            "layout": "vertical",
+            "paddingAll": "20px",
+
+            "contents": [
+
+                # =========================
+                # TITLE
+                # =========================
+                {
+                    "type": "text",
+                    "text": "📦 สรุปรายการสั่งซื้อ",
+                    "weight": "bold",
+                    "size": "xl",
+                    "color": "#1DB446"
+                },
+
+                {
+                    "type": "separator",
+                    "margin": "lg"
+                },
+
+                # =========================
+                # GRAND TOTAL
+                # =========================
+                {
+                    "type": "box",
+                    "layout": "horizontal",
+                    "margin": "xl",
+
+                    "contents": [
+
+                        {
+                            "type": "text",
+                            "text": "รวมทั้งหมด",
+                            "weight": "bold",
+                            "size": "lg"
+                        },
+
+                        {
+                            "type": "text",
+                            "text": f"฿ {grand_total:,}",
+                            "weight": "bold",
+                            "size": "xl",
+                            "align": "end",
+                            "color": "#FF0000"
+                        }
+
+                    ]
+                },
+
+                # =========================
+                # CONFIRM BUTTON
+                # =========================
+                {
+                    "type": "button",
+                    "style": "primary",
+                    "color": "#1DB446",
+                    "margin": "xxl",
+
+                    "action": {
+                        "type": "postback",
+                        "label": "ยืนยันสั่งซื้อสินค้า",
+                        "data": "confirm_order"
+                    }
+                }
+
+            ]
+        }
+    })
 
     # =====================================================
     # FLEX MESSAGE
