@@ -562,7 +562,6 @@ def build_flex_products(ofm_name, products):
 def build_flex_order_items(items):
 
     bubbles = []
-
     grand_total = 0
 
     # =====================================================
@@ -573,31 +572,39 @@ def build_flex_order_items(items):
         chunk = items[i:i+4]
 
         contents = []
-
         bubble_total = 0
 
         for item in chunk:
 
             product_name = item.get("ProductName", "-")
             product_detail = item.get("ProductDetail", "-")
+            product_id = item.get("ProductID", "0")
+            image_url = item.get("imageurl", "")
 
+            # =========================
+            # ราคา
+            # =========================
             try:
                 price = int(item.get("Price", 0))
             except:
                 price = 0
 
+            # =========================
+            # จำนวน
+            # =========================
             try:
                 qty = int(item.get("numberproduct", 1))
             except:
                 qty = 1
-
-            image_url = item.get("imageurl", "")
 
             subtotal = price * qty
 
             bubble_total += subtotal
             grand_total += subtotal
 
+            # =====================================================
+            # CARD สินค้า
+            # =====================================================
             contents.append({
 
                 "type": "box",
@@ -611,18 +618,27 @@ def build_flex_order_items(items):
 
                 "contents": [
 
+                    # =========================
+                    # รูปสินค้า
+                    # =========================
                     {
                         "type": "image",
                         "url": image_url,
                         "size": "sm",
                         "aspectMode": "cover",
-                        "aspectRatio": "1:1"
+                        "aspectRatio": "1:1",
+                        "flex": 2
                     },
 
+                    # =========================
+                    # รายละเอียดสินค้า
+                    # =========================
                     {
                         "type": "box",
                         "layout": "vertical",
                         "spacing": "xs",
+                        "flex": 5,
+
                         "contents": [
 
                             {
@@ -654,6 +670,61 @@ def build_flex_order_items(items):
                                 "size": "sm",
                                 "weight": "bold",
                                 "color": "#1DB446"
+                            },
+
+                            # =========================
+                            # ปุ่ม -   +
+                            # =========================
+                            {
+                                "type": "box",
+                                "layout": "horizontal",
+                                "spacing": "sm",
+                                "margin": "md",
+
+                                "contents": [
+
+                                    {
+                                        "type": "button",
+                                        "style": "secondary",
+                                        "height": "sm",
+
+                                        "action": {
+                                            "type": "postback",
+                                            "label": "-",
+                                           # "data": f"cart_minus:{product_id}"
+                                        }
+                                    },
+
+                                    {
+                                        "type": "button",
+                                        "style": "primary",
+                                        "height": "sm",
+
+                                        "action": {
+                                            "type": "postback",
+                                            "label": "+",
+                                           # "data": f"cart_plus:{product_id}"
+                                        }
+                                    }
+
+                                ]
+                            },
+
+                            # =========================
+                            # ปุ่ม Delete
+                            # =========================
+                            {
+                                "type": "button",
+                                "style": "secondary",
+                                "color": "#FF4444",
+                                "margin": "sm",
+                                "height": "sm",
+
+                                "action": {
+                                    "type": "postback",
+                                    "label": "ลบสินค้า",
+                                    #"data": f"cart_delete:{product_id}"
+                                }
                             }
 
                         ]
@@ -671,9 +742,11 @@ def build_flex_order_items(items):
         })
 
         contents.append({
+
             "type": "box",
             "layout": "horizontal",
             "margin": "lg",
+
             "contents": [
 
                 {
@@ -695,6 +768,9 @@ def build_flex_order_items(items):
             ]
         })
 
+        # =====================================================
+        # BUBBLE
+        # =====================================================
         bubbles.append({
 
             "type": "bubble",
@@ -727,6 +803,9 @@ def build_flex_order_items(items):
         if len(bubbles) >= 10:
             break
 
+    # =====================================================
+    # FLEX MESSAGE
+    # =====================================================
     return {
 
         "type": "flex",
