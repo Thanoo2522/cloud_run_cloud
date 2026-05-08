@@ -222,7 +222,7 @@ def build_flex_category(ofm_name,items):
                 "height": "sm",
                 "margin": "xs",
                 "action": {
-                    "type": "message",
+                    "type": "postback",
                     "label": item,           # ชื่อหมวดหมู่ที่แสดงบนปุ่ม
                    # "text": f"{ofm_name}|mode|{item}"  # ข้อความที่ส่งกลับเมื่อกด
                     "data": f"{ofm_name}|mode|{item}",
@@ -404,7 +404,7 @@ def build_flex_partners(ofm_name,modename, partners):
                 "height": "sm",
                 "margin": "xs",
                 "action": {
-                    "type": "message",
+                    "type": "postback",
                     "label": p_name,
                     #"text": f"{ofm_name}|partner|{modename}|{p_name}" 
                     "data": f"{ofm_name}|partner|{modename}|{p_name}",
