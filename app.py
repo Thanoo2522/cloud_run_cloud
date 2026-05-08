@@ -741,7 +741,7 @@ def build_flex_order_items(items):
                                     {
                                         "type": "button",
                                         "style": "secondary",
-                                         "color": "#1DB446",
+                                         "color": "#94D8A6",
                                         "flex": 1,
 
                                         "action": {
@@ -757,7 +757,7 @@ def build_flex_order_items(items):
                                     {
                                         "type": "button",
                                         "style": "primary",
-                                        "color": "#1DB446",
+                                        "color": "#94D8A6",
                                         "flex": 1,
 
                                         "action": {
@@ -777,7 +777,7 @@ def build_flex_order_items(items):
                                 "type": "button",
                                 "style": "secondary",
                                 "margin": "sm",
-                                "color": "#FF0000",
+                                "color": "#E7DEDE",
 
                                 "action": {
                                     "type": "postback",
@@ -861,7 +861,7 @@ def build_flex_order_items(items):
 
                 {
                     "type": "text",
-                    "text": f"{index}. {product_name} ({price:,} บาท) x{qty}",
+                    "text": f"{index}. {product_name}:{price}x{qty}",
                     "size": "sm",
                     "wrap": True,
                     "flex": 5
