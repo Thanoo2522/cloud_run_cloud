@@ -302,6 +302,7 @@ def build_flex_category(ofm_name, items):
 
 #============== commamd "order" ======================
 def handle_order_command(ofm_name, user_id, parts):
+
     try:
 
         # ==================================================
@@ -315,15 +316,14 @@ def handle_order_command(ofm_name, user_id, parts):
         partnershop = parts[6].strip() if len(parts) > 6 else "ร้านค้าทั่วไป"
         mode = parts[7].strip() if len(parts) > 7 else "-"
         name_ofm = parts[8].strip() if len(parts) > 8 else "-"
-         
 
-        print("🛒 PRODUCT:", productname)
-        print("💰 PRICE:", priceproduct)
-        print("🖼️ IMAGE:", image_url)
-        print("📄 DATA:", dataproduct)
-        print("🏪 PARTNERSHOP:", partnershop)
-        print("🏷️ MODE:", mode)
-        print("🏷️ NAME_OFM:", name_ofm)
+       # print("🛒 PRODUCT:", productname)
+        #print("💰 PRICE:", priceproduct)
+       # print("🖼️ IMAGE:", image_url)
+        #print("📄 DATA:", dataproduct)
+        #print("🏪 PARTNERSHOP:", partnershop)
+       # print("🏷️ MODE:", mode)
+       # print("🏷️ NAME_OFM:", name_ofm)
 
         # ==================================================
         # CUSTOMER
@@ -332,6 +332,19 @@ def handle_order_command(ofm_name, user_id, parts):
                          .document(ofm_name) \
                          .collection("customers") \
                          .document(user_id)
+
+        # ==================================================
+        # อ่านข้อมูล customer
+        # ==================================================
+        customer_doc = customer_ref.get()
+
+        home = "-"
+
+        if customer_doc.exists:
+            customer_data = customer_doc.to_dict()
+            home = customer_data.get("home", "-")
+
+       # print("🏠 HOME:", home)
 
         # ==================================================
         # ORDER ID
@@ -352,7 +365,8 @@ def handle_order_command(ofm_name, user_id, parts):
             "Preorder": 1,
             "createdAt": datetime.utcnow(),
             "status": "draft",
-            "orderId": activeOrderId
+            "orderId": activeOrderId,
+            "home": home
         })
 
         # ---------------- UPDATE CUSTOMER ----------------
@@ -371,8 +385,10 @@ def handle_order_command(ofm_name, user_id, parts):
             "Partnershop": partnershop,
             "numberproduct": 1,
             "status": "draft",
+            "orderId": activeOrderId,
             "mode": mode,
             "name_ofm": name_ofm,
+            "home": home,
             "created_at": datetime.utcnow()
         })
 
@@ -397,8 +413,6 @@ def handle_order_command(ofm_name, user_id, parts):
             "type": "text",
             "text": "❌ บันทึกออเดอร์ไม่สำเร็จ กรุณาลองใหม่"
         }
-
-
 # ===============================================================
 # 3. ฟังก์ชันดึง "Partner" (Logic เดียวกับ get_mod_product_direct)
 # ===============================================================
@@ -624,6 +638,7 @@ def build_flex_order_items(items):
 
             order_id = str(item.get("OrderId", "0"))
             item_id = str(item.get("ItemId", "0"))
+            ofm_name = str(item.get("name_ofm", "-")) # data from friebase
 
             try:
                 price = int(item.get("Price", 0))
@@ -963,7 +978,9 @@ def build_flex_order_items(items):
                     "action": {
                         "type": "postback",
                         "label": "ยืนยันสั่งซื้อสินค้า",
-                        "data": "confirm_order"
+                        "data": f"{ofm_name}|confirmorder",
+                                    # ✅ แสดงข้อความสวยๆ ในห้องแชทแทนรหัสระบบ
+                                    "displayText": f"ยืนยันสั่งซื้อสินค้า"
                     }
                 }
 
