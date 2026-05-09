@@ -301,6 +301,10 @@ def build_flex_category(ofm_name, items):
     }
 
 #============== commamd "order" ======================
+from datetime import datetime
+import time
+import traceback
+
 def handle_order_command(ofm_name, user_id, parts):
 
     try:
@@ -317,67 +321,110 @@ def handle_order_command(ofm_name, user_id, parts):
         mode = parts[7].strip() if len(parts) > 7 else "-"
         name_ofm = parts[8].strip() if len(parts) > 8 else "-"
 
-       # print("🛒 PRODUCT:", productname)
-        #print("💰 PRICE:", priceproduct)
-       # print("🖼️ IMAGE:", image_url)
-        #print("📄 DATA:", dataproduct)
-        #print("🏪 PARTNERSHOP:", partnershop)
-       # print("🏷️ MODE:", mode)
-       # print("🏷️ NAME_OFM:", name_ofm)
-
         # ==================================================
-        # CUSTOMER
+        # CUSTOMER REF
         # ==================================================
         customer_ref = db.collection(ofm_name) \
                          .document(ofm_name) \
                          .collection("customers") \
                          .document(user_id)
 
-        # ==================================================
-        # อ่านข้อมูล customer
-        # ==================================================
         customer_doc = customer_ref.get()
 
         home = "-"
+        activeOrderId = None
 
         if customer_doc.exists:
             customer_data = customer_doc.to_dict()
+
             home = customer_data.get("home", "-")
-
-       # print("🏠 HOME:", home)
-
-        # ==================================================
-        # ORDER ID
-        # ==================================================
-        activeOrderId = str(int(time.time() * 1000))
-
-        order_ref = customer_ref \
-                    .collection("orders") \
-                    .document(activeOrderId)
+            activeOrderId = customer_data.get("activeOrderId")
 
         # ==================================================
-        # BATCH
+        # ตรวจสอบ ORDER เดิม
         # ==================================================
-        batch = db.batch()
+        use_old_order = False
+        preorder_count = 0
 
-        # ---------------- HEADER ORDER ----------------
-        batch.set(order_ref, {
-            "Preorder": 1,
-            "createdAt": datetime.utcnow(),
-            "status": "draft",
-            "orderId": activeOrderId,
-            "home": home
-        })
+        if activeOrderId:
 
-        # ---------------- UPDATE CUSTOMER ----------------
-        batch.set(customer_ref, {
-            "activeOrderId": activeOrderId
-        }, merge=True)
+            old_order_ref = customer_ref \
+                .collection("orders") \
+                .document(activeOrderId)
 
-        # ---------------- ITEM ----------------
+            old_order_doc = old_order_ref.get()
+
+            if old_order_doc.exists:
+
+                old_order_data = old_order_doc.to_dict()
+
+                preorder_value = old_order_data.get("Preorder")
+
+                # ใช้ order เดิม ถ้า Preorder >= 1
+                if preorder_value not in [None, ""]:
+
+                    try:
+                        preorder_count = int(preorder_value)
+
+                        if preorder_count >= 1:
+                            use_old_order = True
+
+                    except:
+                        pass
+
+        # ==================================================
+        # ถ้าไม่มี ORDER เดิม → สร้างใหม่
+        # ==================================================
+        if not use_old_order:
+
+            activeOrderId = str(int(time.time() * 1000))
+
+            order_ref = customer_ref \
+                .collection("orders") \
+                .document(activeOrderId)
+
+            preorder_count = 1
+
+            # ---------------- สร้าง ORDER ใหม่ ----------------
+            order_ref.set({
+                "Preorder": preorder_count,
+                "createdAt": datetime.utcnow(),
+                "status": "draft",
+                "orderId": activeOrderId,
+                "home": home
+            })
+
+            # ---------------- update customer ----------------
+            customer_ref.set({
+                "activeOrderId": activeOrderId
+            }, merge=True)
+
+            print("🆕 CREATE NEW ORDER")
+
+        else:
+
+            # ==================================================
+            # ใช้ ORDER เดิม
+            # ==================================================
+            order_ref = customer_ref \
+                .collection("orders") \
+                .document(activeOrderId)
+
+            preorder_count += 1
+
+            order_ref.update({
+                "Preorder": preorder_count,
+                "updatedAt": datetime.utcnow()
+            })
+
+            print("♻️ USE OLD ORDER")
+
+        # ==================================================
+        # เพิ่ม ITEM ใหม่ทุกครั้ง
+        # ==================================================
         item_ref = order_ref.collection("items").document()
 
-        batch.set(item_ref, {
+        item_ref.set({
             "productname": productname,
             "dataproduct": dataproduct,
             "priceproduct": priceproduct,
@@ -392,12 +439,7 @@ def handle_order_command(ofm_name, user_id, parts):
             "created_at": datetime.utcnow()
         })
 
-        # ==================================================
-        # COMMIT
-        # ==================================================
-        batch.commit()
-
-        print("✅ ORDER SAVED")
+        print("✅ ITEM SAVED")
 
         return {
             "type": "text",
